@@ -1,0 +1,15 @@
+*~
+input
+output*
+result
+html
+log.txt
+doc
+.yardoc
+vendor
+.bundle
+pkg
+\#*
+nohup.out
+Gemfile.lock
+gems
