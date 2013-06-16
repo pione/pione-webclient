@@ -1,0 +1,15 @@
+body {
+    background-color: #bee0ce; /* opal green */
+    color: #56256e; /* grape */
+}
+
+#job-queue {
+    background-color: white;
+}
+#main {
+    background-color: white;
+}
+
+.container {
+    background-color: white;
+}

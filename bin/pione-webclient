@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# ~*~ ruby ~*~
+
+require 'pione/webclient'
+
+Pione::WebClient::Application.run!
+
