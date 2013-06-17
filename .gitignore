@@ -19,3 +19,4 @@ public/js/backbone.js
 public/js/bootstrap*.js
 public/css/bootstrap*.css
 public/img/glyphicons*.png
+public/js/d3*.js

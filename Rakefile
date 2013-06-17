@@ -26,6 +26,10 @@ task "download:js" do
     sh "cp -R bootstrap/css ."
     sh "cp -R bootstrap/img ."
     sh "rm -rf bootstrap"
+    sh "curl http://d3js.org/d3.v3.zip > d3.v3.zip"
+    sh "unzip -o d3.v3.zip d3.v3.js"
+    sh "mv d3.v3.js js/d3.v3.js"
+    sh "rm d3.v3.zip"
   end
 end
 
