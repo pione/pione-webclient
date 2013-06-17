@@ -13,3 +13,9 @@ pkg
 nohup.out
 Gemfile.lock
 gems
+public/js/jquery*.js
+public/js/underscore.js
+public/js/backbone.js
+public/js/bootstrap*.js
+public/css/bootstrap*.css
+public/img/glyphicons*.png
