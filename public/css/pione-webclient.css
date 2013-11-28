@@ -1,15 +1,121 @@
+/* ------------------------------------------------------------ *
+   Basic Elements
+ * ------------------------------------------------------------ */
+
+/* background and foreground */
 body {
     background-color: #bee0ce; /* opal green */
     color: #56256e; /* grape */
+    padding: 0 100px;
 }
 
-#job-queue {
-    background-color: white;
-}
-#main {
-    background-color: white;
+/* section header */
+h2 {
+    font-family: 'Inconsolata', sans-serif;
+    font-weight: 700;
 }
 
-.container {
-    background-color: white;
+/* ------------------------------------------------------------ *
+   Header
+ * ------------------------------------------------------------ */
+
+/* title */
+h1 {
+    font-size: 5em;
+    font-family: 'Roboto Condensed', sans-serif;
+    text-shadow: 3px 3px 3px #aaa;
+    font-weight: 700;
+    font-style: italic;
+    margin-bottom: -5px;
 }
+
+/* subtitle */
+#header div {
+    font-size: 80%;
+    background-color: #56256e;
+    color: white;
+    font-family: 'Roboto', sans-serif;
+    padding-left: 1em;
+    font-weight: 100;
+    letter-spacing: 0.1em;
+}
+
+/* ------------------------------------------------------------ *
+   Source
+ * ------------------------------------------------------------ */
+
+#source dd { margin-bottom: 1em; }
+#source .source-names { padding-left: 1em; }
+
+/* ------------------------------------------------------------ *
+   Operation
+ * ------------------------------------------------------------ */
+
+#operation h2 { display: none; }
+
+/* ------------------------------------------------------------ *
+   Message Log
+ * ------------------------------------------------------------ */
+
+#message-log { display: none; }
+
+#message-log .panel {
+    background-color: black;
+    color: white;
+    font-family: 'Inconsolata', sans-serif;
+    font-weight: 300;
+}
+
+#message-log pre {
+    background-color: black;
+    color: white;
+    border-color: black;
+}
+
+#message-log .black  { color: black  }
+#message-log .red    { color: red    }
+#message-log .green  { color: green  }
+#message-log .yellow { color: yellow }
+#message-log .purple { color: purple }
+#message-log .cyan   { color: cyan   }
+#message-log .white  { color: white  }
+
+/* ------------------------------------------------------------ *
+   Target
+ * ------------------------------------------------------------ */
+
+#target { display: none; }
+
+/* ------------------------------------------------------------ *
+   Alert
+ * ------------------------------------------------------------ */
+
+#alert-box {
+    position: fixed;
+    top: 1em;
+    left: 0;
+    right: 0;
+    margin: 0 100px;
+    display: none;
+}
+
+#alert-box .alert {
+    margin: 0;
+    opacity: 0.95;
+}
+
+/* ------------------------------------------------------------ *
+   Footer
+ * ------------------------------------------------------------ */
+
+#footer {
+    margin: 1em 0;
+    padding: 0.5em 0;
+    text-align: center;
+    background-color: #add0bd;
+    border-radius: 5px;
+}
+
+#footer h2 { display: none; }
+
+

@@ -1,40 +1,218 @@
+/* ============================================================ *
+   PIONE Webclient
+ * ============================================================ */
 
-function Params(name, data) {
-    var label = $("<label/>").text(name);
-    var input = $("<input>")
-    $("#parameters")
-}
+// Define an application.
+window.PioneWebclient = {};
 
-var TypeSelector = new function() {
-    TypeSelectorBox(parent) {
-    this.select = $("<select/>").addClass("span6").attr("id", "processing-type");
+/* ------------------------------------------------------------ *
+   Webclient Model and Operations
+ * ------------------------------------------------------------ */
 
-    this.prototype = {
-	build: function() {
-	    $("<h2/>").text("Select processing type").appendTo($("#type-selector-box"));
-
-	    // append select into the box
-	    select.appendTo($("#type-selector-box"));
-
-	// add empty option
-	$("<option/>").appendTo(select);
-
-	// add options
-	$.get("processing-types", function(types) {_.each(types, makeOption);});
-
-	// setup event
-	select.change(changed);
+// Initialize the client model.
+PioneWebclient.initModel = function () {
+    // initialize the source model
+    PioneWebclient.source = {
+	ppg: undefined,
+	files: []
     };
 
-    makeOption: function (name) {
-	$("<option/>").attr("label", name).attr("value", name).text(name).appendTo(select);
-    },
+    // initialize the result
+    PioneWebclient.result = {url: undefined};
 
-    changed: function () {
-	$.post("params", {name: select.val()}, function(data) {new Parameter(data);});
+    // clear chooser names
+    $("#source-ppg").text("");
+    $("#source-files").text("");
+
+    // disable request button
+    PioneWebclient.enableRequest(false);
+};
+
+// Setup Dropbox chooser actions.
+PioneWebclient.setupChooser = function () {
+    // PPG chooser
+    $("#source-ppg-chooser").on("DbxChooserSuccess", function (res) {
+	var ppg = res.originalEvent.files[0];
+
+	// register as a source PPG
+	PioneWebclient.source.ppg = ppg.link;
+	// show the PPG name
+	$("#source-ppg").text(ppg.name);
+	// enable request button
+	PioneWebclient.enableRequest(true);
+    });
+
+    // Source files chooser
+    $("#source-files-chooser").on("DbxChooserSuccess", function (res) {
+	var files = res.originalEvent.files;
+	var names = _.map(_.first(files, 3), function(file) {return file.name}).join(", ");
+	if (files.length > 3) {
+	    names = names + ", ..."
+	}
+
+	// register as source files
+	PioneWebclient.source.files = _.map(files, function(file) {return file.link});
+	// show source file names
+	$("#source-files").text(names);
+    });
+};
+
+// Reset Dropbox's chooser buttons. I think this is irresponsible way, do you
+// know right manner of reset the buttons?
+PioneWebclient.resetChooser = function () {
+    var buttons = $(".dropbox-dropin-btn");
+    buttons.removeClass("dropbox-dropin-success dropbox-dropin-error");
+    buttons.addClass("dropbox-dropin-default");
+}
+
+// Enable or disable job request.
+PioneWebclient.enableRequest = function (state) {
+    $("#request").disabled = state;
+    $("#request").toggleClass("disabled", !state);
+};
+
+// Show message log section or not.
+PioneWebclient.showMessageLog = function (state) {
+    if (state) {
+	$("#message-log pre").empty();
+	$("#message-log").fadeIn();
+    } else {
+	$("#message-log").fadeOut();
+	$("#message-log pre").empty();
     }
 }
 
-$(document).ready(function(){
-    typeSelectorBox.build();
+// Show target section or not.
+PioneWebclient.showTarget = function (state) {
+    if (state) {
+	$("#target").fadeIn();
+    } else {
+	$("#target").fadeOut();
+    }
+}
+
+// Clear the webclient.
+PioneWebclient.clear = function () {
+    PioneWebclient.initModel();
+    PioneWebclient.resetChooser();
+    PioneWebclient.enableRequest(false);
+    PioneWebclient.showMessageLog(false);
+    PioneWebclient.showTarget(false);
+};
+
+/* ------------------------------------------------------------ *
+   Websocket Handlers
+ * ------------------------------------------------------------ */
+
+// Make a websocket connection.
+PioneWebclient.io = new RocketIO().connect();
+
+// Handle "status" messages.
+PioneWebclient.io.on("status", function(name) {
+    switch(name) {
+    case "ACCEPTED":
+	PioneWebclient.showSuccess("Your request was accepted.");
+	break;
+    case "BUSY":
+	PioneWebclient.showError("Server is busy now, please try again later.");
+	break;
+    case "START_FETCHING":
+	PioneWebclient.showInfo("PIONE is fetching your source files...");
+	break;
+    case "END_FETCHING":
+	PioneWebclient.showSuccess("Your source files have been fetched.");
+	break;
+    case "FETCH_ERROR":
+	PioneWebclient.showError("PIONE failed to download source files.");
+	break;
+    case "PROCESSING":
+	PioneWebclient.showInfo("PIONE starts processing your job.");
+	if ($("#message-log:visible").length == 0) {
+	    PioneWebclient.showMessageLog(true);
+	}
+	break;
+    case "FINISHING":
+	PioneWebclient.showInfo("PIONE finishes processing your job.");
+	break;
+    case "COMPLETED":
+	PioneWebclient.showSuccess("Your job completed.");
+	break;
+    }
+});
+
+// Handle "result" messages.
+PioneWebclient.io.on("result", function(data) {
+    var path = "result/" + data["uuid"] + "/" + data["filename"];
+
+    $("#target").fadeIn();
+    $("#target-saver").attr("href", path);
+    $("#target-download").attr("href", path);
+});
+
+// Handle "message-log" messages.
+PioneWebclient.io.on("message-log", function(data) {
+    var area = $("#message-log pre");
+    // level padding
+    _(data["level"]).times(function(n) {area.append("  ")});
+    // header padding
+    var header = "";
+    _(5 - data["header"].length).times(function(n) {header = header + " "});
+    // header
+    area.append($("<span/>", {text: header + data["header"], class: "header " + data["color"]}));
+    area.append(" ");
+    // content
+    area.append($("<span/>", {text: data["content"], class: "content"}));
+    area.append("\n");
+});
+
+/* ------------------------------------------------------------ *
+   Job Handler
+ * ------------------------------------------------------------ */
+
+// Send a job processing request.
+PioneWebclient.sendRequest = function () {
+    PioneWebclient.io.push("request", PioneWebclient.source);
+};
+
+// Send a job cancel message.
+PioneWebclient.sendCancel = function () {
+    PioneWebclient.io.push("cancel");
+};
+
+/* ------------------------------------------------------------ *
+   Alert Message
+ * ------------------------------------------------------------ */
+
+// Show the alert message.
+PioneWebclient.showAleart = function(type, header, msg) {
+    var alert = $("<div/>", {class: "alert alert-" + type});
+    alert.append($("<strong/>", {text: header, style: "padding-right: 1em;"}));
+    alert.append($("<span/>", {text: msg}));
+    alert.prependTo("#alert-box");
+    $("#alert-box").fadeIn();
+    setTimeout(function() {alert.fadeOut();}, 5000);
+};
+
+// Show the success message.
+PioneWebclient.showSuccess = function(msg) {PioneWebclient.showAleart("success", "Success", msg)}
+
+// Show the info message.
+PioneWebclient.showInfo = function(msg) {PioneWebclient.showAleart("info", "Info", msg)}
+
+// Show the warning message.
+PioneWebclient.showWarning = function(msg) {PioneWebclient.showAleart("warning", "Warning", msg)}
+
+// Show the error message.
+PioneWebclient.showError = function(msg) {PioneWebclient.showAleart("danger", "Error", msg)}
+
+/* ------------------------------------------------------------ *
+   Document Ready Actions
+ * ------------------------------------------------------------ */
+
+// Do the action on loading the document.
+$(document).ready(function() {
+    PioneWebclient.initModel();
+    $("#request").on("click", function () {PioneWebclient.sendRequest()});
+    $("#clear").on("click", function () {PioneWebclient.clear()});
+    PioneWebclient.setupChooser();
 });

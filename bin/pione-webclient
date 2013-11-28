@@ -2,6 +2,4 @@
 # ~*~ ruby ~*~
 
 require 'pione/webclient'
-
-Pione::WebClient::Application.run!
-
+Pione::Command::PioneWebclient.run(ARGV)

@@ -2,45 +2,105 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>PIONE webclient</title>
-    <!-- <script type="text/javascript" src="webclient.js"></script> -->
-    <link rel="stylesheet" href="css/bootstrap.css"/>
+    <title>PIONE Webclient</title>
+    <link rel="stylesheet" href="lib/css/bootstrap.css"/>
+    <link rel="stylesheet" href="lib/css/bootstrap-theme.css"/>
     <link rel="stylesheet" href="css/pione-webclient.css"/>
+    <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto+Condensed:700italic|Roboto:100|Inconsolata:700,400"/>
   </head>
 
   <body>
-    <div class="container">
+    <!-- Header -->
+    <section id="header">
+      <h1>PIONE Webclient</h1>
+      <div>PIONE is a rule based workflow engine. Hello, PIONE users!</div>
+    </section>
 
-      <div class="header">
-	<div class="hero-unit">
-	<h1>PIONE WebClient</h1>
-	Pione is a rule engine.
+    <!-- Source -->
+    <section id="source">
+      <h2>Select a PIONE Package and Source Files</h2>
+      <div id="source-panel" class="panel panel-default">
+	<dl class="panel-body">
+	  <dt>PIONE Package</dt>
+	  <dd>
+	    <input type="dropbox-chooser" name="selected-file" id="source-ppg-chooser" style="visibility: hidden;"
+		   data-link-type="direct" data-extensions=".ppg" />
+	    <span id="source-ppg" class="source-names"></span>
+	  </dd>
+
+	  <dt>Source Files</dt>
+	  <dd>
+	    <input type="dropbox-chooser" name="selected-file" id="source-files-chooser" style="visibility: hidden;"
+		   data-link-type="direct" data-multiselect="true" />
+	    <span id="source-files" class="source-names"></span>
+	  </dd>
+	</dl>
+      </div>
+    </section>
+
+    <!-- Operation -->
+    <section id="operation">
+      <h2>Operations</h2>
+      <div class="btn-group btn-group-justified">
+ 	<a href="#" class="btn btn-lg btn-default disabled" id="request">
+	  <span class="glyphicon glyphicon-play"></span> Request
+	</a>
+ 	<a href="#" class="btn btn-lg btn-default disabled" id="cancel">
+	  <span class="glyphicon glyphicon-stop"></span> Cancel
+	</a>
+	<a href="#" class="btn btn-lg btn-default" id="clear">
+	  <span class="glyphicon glyphicon-trash"></span> Clear
+	</a>
+      </div>
+    </section>
+
+    <!-- Message Log -->
+    <section id="message-log">
+      <h2>Processing Message Log</h2>
+      <div class="panel panel-default">
+	<div class="panel-body">
+	  <pre></pre>
 	</div>
       </div>
+    </section>
 
-      <div class="row">
-	<!-- job queue -->
-	<div class="span3" id="job-queue">
-	  <h2>Job Queue</h2>
-	  <div></div>
+    <!-- Target -->
+    <section id="target">
+      <h2>Save the Target Zip</h2>
+      <div class="panel pane-default">
+	<div class="panel-body">
+	  <a href="pione-logo.png" class="dropbox-saver" data-filename="result.zip" id="target-saver"></a> or
+	  <a href="pione-logo.png" class="btn btn-xs btn-default" id="target-download">
+	    <span class="glyphicon glyphicon-download"></span> Direct Download
+	  </a>
 	</div>
+      </div>
+    </section>
 
-	<!-- main -->
-	<div class="span9" id="main">
-	  <div id="type-selector-box"></div>
+    <!-- Alert Message Box -->
+    <div id="alert-box"></div>
 
-	  <!-- processing status box -->
-	  <div>
-	  </div>
-	</div>
+    <!-- Footer -->
+    <section id="footer">
+      <h2>Footer</h2>
+      <span style="padding-right: 1em">PIONE Projects:</span>
+      <div class="btn-group">
+	<a href="https://github.com/pione/pione" class="btn btn-xs btn-default">
+	  <img src="https://raw.github.com/github/media/master/octocats/blacktocat-16.png"/> PIONE
+	</a>
+	<a href="https://github.com/pione/pione-webclient" class="btn btn-xs btn-default">
+	  <img src="https://raw.github.com/github/media/master/octocats/blacktocat-16.png"/> PIONE Webclient
+	</a>
       </div>
     </div>
 
-    <script src="js/d3.v3.js"></script>
-    <script src="js/underscore.js"></script>
-    <script src="js/jquery-1.10.1.js"></script>
-    <script src="js/bootstrap.js"></script>
+    <!-- Script -->
+    <script src="lib/js/underscore.js"></script>
+    <script src="lib/js/jquery.js"></script>
+    <script src="lib/js/bootstrap.js"></script>
+    <script src="rocketio/rocketio.js"></script>
     <script src="js/pione-webclient.js"></script>
+    <script type="text/javascript" src="https://www.dropbox.com/static/api/1/dropins.js" id="dropboxjs" data-app-key="v46ajl0zzrhtjhb"></script>
   </body>
 </html>
 
