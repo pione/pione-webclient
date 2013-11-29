@@ -14,4 +14,4 @@ nohup.out
 Gemfile.lock
 gems
 public/lib
-lib-installer.log
+*.log
