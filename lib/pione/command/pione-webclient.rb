@@ -48,7 +48,7 @@ module Pione
 
       # Setup webclient's running environment.
       def setup_running_environment
-        Webclient::Application.set(:environment, option[:environment])
+        Webclient::Application.set(:environment, option[:environment] || :development)
       end
 
       #
