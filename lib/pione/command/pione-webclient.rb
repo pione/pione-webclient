@@ -25,6 +25,12 @@ module Pione
         item.value = lambda {|name| name.to_sym}
       end
 
+      define_option(:stand_alone) do |item|
+        item.long = '--stand-alone'
+        item.desc = 'turn on stand alone mode'
+        item.action = lambda {|_, _, _| Global.stand_alone = true}
+      end
+
       #
       # command lifecycle: setup phase
       #

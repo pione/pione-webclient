@@ -32,8 +32,6 @@ module Pione
                 fetch(req)
                 @processable_queue.push(req)
               rescue Object => e
-                p e
-
                 # send status
                 Global.io.push(:status, "FETCH_ERROR", to: req.session_id)
 
@@ -147,6 +145,9 @@ module Pione
         #     spawner.option("--presence-notification-address", address.to_s)
         #   end
         # end
+        if Global.stand_alone
+          spawner.option("--stand-alone")
+        end
 
         # arguements
         spawner.option(req.local_ppg_location.address)

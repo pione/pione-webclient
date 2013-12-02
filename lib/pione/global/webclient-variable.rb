@@ -29,5 +29,10 @@ module Pione
       item.desc = "Max size of job queue."
       item.init = 5
     end
+
+    define_external_item(:stand_alone) do |item|
+      item.desc = "Spawn pione-client with stand alone mode"
+      item.init = false
+    end
   end
 end
