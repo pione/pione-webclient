@@ -22,7 +22,9 @@ module Pione
       #
 
       get '/' do
-        send_file File.join(settings.public_folder, 'index.html')
+        template = Location[settings.views] + "index.erb"
+        last_modified template.mtime
+        erb :index
       end
 
       #
@@ -43,6 +45,8 @@ module Pione
       get '/result/:uuid/*.zip' do
         if zip_location = Global.job_manager.zip(params[:uuid])
           content_type "application/zip"
+          last_modified zip_location.mtime
+
           send_file(zip_location.path.to_s)
         else
           return 404, "no results"

@@ -34,5 +34,9 @@ module Pione
       item.desc = "Spawn pione-client with stand alone mode"
       item.init = false
     end
+
+    define_internal_item(:dropins_app_key) do |item|
+      item.desc = "Drop-ins app key"
+    end
   end
 end

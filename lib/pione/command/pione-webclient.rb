@@ -35,8 +35,18 @@ module Pione
       # command lifecycle: setup phase
       #
 
+      setup :dropins_app_key
       setup :message_log_receiver
       setup :running_environment
+
+      def setup_dropins_app_key
+        dropins_app_key_path = Global.webclient_root + "dropins-app-key.txt"
+        if dropins_app_key_path.exist?
+          Global.dropins_app_key = dropins_app_key_path.read.chomp
+        else
+          abort("You should create Drop-ins app key file at %s" % dropins_app_key_path)
+        end
+      end
 
       # Setup a message log receiver. This receiver sends message logs to
       # client's browser.

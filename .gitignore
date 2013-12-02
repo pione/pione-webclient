@@ -15,3 +15,4 @@ Gemfile.lock
 gems
 public/lib
 *.log
+dropins-app-key.txt
