@@ -9,7 +9,7 @@ DIR = File.join(File.dirname(__FILE__), "..")
 def watch_pione_webclient(additional_options="")
   God.watch do |w|
     w.name = "pione-webclient"
-    w.start = "bundle exec pione-webclient %s" % additional_options
+    w.start = "ruby -I lib bin/pione-webclient %s" % additional_options
     w.log = File.join(DIR, "pione-webclient-god.log")
     w.dir = DIR
     w.keepalive
