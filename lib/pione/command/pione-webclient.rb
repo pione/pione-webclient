@@ -44,7 +44,11 @@ module Pione
         if dropins_app_key_path.exist?
           Global.dropins_app_key = dropins_app_key_path.read.chomp
         else
-          abort("You should create Drop-ins app key file at %s" % dropins_app_key_path)
+          if option[:environment] == :production
+            abort("You should create Drop-ins app key file at %s" % dropins_app_key_path)
+          else
+            Global.dropins_app_key = ""
+          end
         end
       end
 
