@@ -52,6 +52,17 @@ module Pione
           return 404, "no results"
         end
       end
+
+      #
+      # Admin
+      #
+
+      get '/shutdown' do
+        Global.io.push(:status, "SHUTDOWN")
+        sleep 5
+        puts "!!! PIONE Webclient shutdowned !!!"
+        exit!
+      end
     end
   end
 end

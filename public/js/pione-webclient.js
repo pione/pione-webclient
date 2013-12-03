@@ -137,6 +137,9 @@ PioneWebclient.io.on("status", function(name) {
     case "COMPLETED":
 	PioneWebclient.showSuccess("Your job completed.");
 	break;
+    case "SHUTDOWN":
+	PioneWebclient.showError("PIONE Webserver shutdowned. Please retry your job later, sorry.")
+	break;
     }
 });
 
