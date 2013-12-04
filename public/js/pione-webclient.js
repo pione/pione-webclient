@@ -99,7 +99,7 @@ PioneWebclient.clear = function () {
     PioneWebclient.showMessageLog(false);
     PioneWebclient.showTarget(false);
     if (PioneWebclient.connection) {
-	PioneWebclient.showGoodJobStatus("Wait Request");
+	PioneWebclient.setGoodJobStatus("Wait Request");
     }
 };
 
