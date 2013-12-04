@@ -175,6 +175,7 @@ PioneWebclient.io.on("result", function(data) {
 
     $("#target").fadeIn();
     $("#target-saver").attr("href", path);
+    $("#target-saver").attr("data-filename", data["filename"]);
     $("#target-download").attr("href", path);
 });
 
