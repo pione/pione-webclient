@@ -65,10 +65,16 @@ PioneWebclient.resetChooser = function () {
     buttons.addClass("dropbox-dropin-default");
 }
 
-// Enable or disable job request.
+// Enable or disable job request button.
 PioneWebclient.enableRequest = function (state) {
     $("#request").disabled = state;
     $("#request").toggleClass("disabled", !state);
+};
+
+// Enable or disable job cancel button.
+PioneWebclient.enableCancel = function (state) {
+    $("#cancel").disabled = state;
+    $("#cancel").toggleClass("disabled", !state);
 };
 
 // Show message log section or not.
@@ -96,6 +102,7 @@ PioneWebclient.clear = function () {
     PioneWebclient.initModel();
     PioneWebclient.resetChooser();
     PioneWebclient.enableRequest(false);
+    PioneWebclient.enableCancel(false);
     PioneWebclient.showMessageLog(false);
     PioneWebclient.showTarget(false);
     if (PioneWebclient.connection) {
@@ -137,9 +144,10 @@ PioneWebclient.io.on("status", function(name) {
     case "ACCEPTED":
 	PioneWebclient.setGoodJobStatus("Queued");
 	PioneWebclient.showSuccess("Your request was accepted.");
+	PioneWebclient.enableCancel(true);
 	break;
     case "BUSY":
-	PioneWebclient.setGoodJobStatus("Rejected");
+	PioneWebclient.setBadJobStatus("Busy");
 	PioneWebclient.showError("Server is busy now, please try again later.");
 	break;
     case "START_FETCHING":
@@ -173,17 +181,24 @@ PioneWebclient.io.on("status", function(name) {
 	PioneWebclient.setBadJobStatus("Shutdowned");
 	PioneWebclient.showError("PIONE Webserver shutdowned. Please retry your job later, sorry.")
 	break;
+    case "CANCELED":
+	PioneWebclient.setGoodJobStatus("Wait Request");
+	PioneWebclient.showInfo("Your job canceled.");
+	PioneWebclient.enableRequest(true);
+	break;
     }
 });
 
 // Handle "result" messages.
 PioneWebclient.io.on("result", function(data) {
     var path = "result/" + data["uuid"] + "/" + data["filename"];
-
-    $("#target").fadeIn();
     $("#target-saver").attr("href", path);
     $("#target-saver").attr("data-filename", data["filename"]);
     $("#target-download").attr("href", path);
+
+    PioneWebclient.showTarget(true);
+    PioneWebclient.enableRequest(true);
+    PioneWebclient.enableCancel(false);
 });
 
 // Handle "message-log" messages.
@@ -209,11 +224,15 @@ PioneWebclient.io.on("message-log", function(data) {
 // Send a job processing request.
 PioneWebclient.sendRequest = function () {
     PioneWebclient.io.push("request", PioneWebclient.source);
+    PioneWebclient.enableRequest(false);
+    $("#message-log pre").empty();
+    PioneWebclient.showTarget(false);
 };
 
 // Send a job cancel message.
 PioneWebclient.sendCancel = function () {
     PioneWebclient.io.push("cancel");
+    PioneWebclient.enableCancel(false);
 };
 
 /* ------------------------------------------------------------ *
@@ -312,6 +331,7 @@ PioneWebclient.setUnknownServerStatus = function(status) {
 $(document).ready(function() {
     PioneWebclient.initModel();
     $("#request").on("click", function () {PioneWebclient.sendRequest()});
+    $("#cancel").on("click", function () {PioneWebclient.sendCancel()});
     $("#clear").on("click", function () {PioneWebclient.clear()});
     PioneWebclient.setupChooser();
 

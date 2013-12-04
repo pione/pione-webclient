@@ -44,7 +44,7 @@ module Pione
           @fetch_queue.push(req)
 
           # send an "ACCEPTED" message
-          Global.io.push("status", "ACCEPTED", to: session_id)
+          Global.io.push("status", "ACCEPTED", to: session_id) if req.active
         end
       end
 
@@ -53,17 +53,19 @@ module Pione
       # @param session_id [String]
       #   session ID
       def cancel(session_id)
-        # deactivate the request
-        @request[session_id].active = false
-        @request.delete(session_id)
+        if @request[session_id]
+          # deactivate the request
+          @request[session_id].active = false
+          @request.delete(session_id)
 
-        # kill processing PID
-        if @processing_request and @processing_pid and @processing_request.session_id == session_id
-          Process.kill(:TERMINATE, @processing_pid)
+          # kill processing PID
+          if @processing_request and @processing_pid and @processing_request.session_id == session_id
+            Process.kill(:TERM, @processing_pid)
+          end
+
+          # push status message
+          Global.io.push(:status, "CANCELED", :to => session_id)
         end
-
-        # push status message
-        Global.io.push(:status, "CANCELED", :to => session_id)
       end
 
       # Return the zip file location for the UUID.
@@ -93,7 +95,7 @@ module Pione
                 @process_queue.push(req)
               rescue Object => e
                 # send status
-                Global.io.push(:status, "FETCH_ERROR", to: req.session_id)
+                Global.io.push(:status, "FETCH_ERROR", to: req.session_id) if req.active
 
                 # clear the request
                 @request.delete(req.session_id)
@@ -114,8 +116,9 @@ module Pione
 
             if req.active
               # process the request
-              process(req)
-              make_result_archive(req)
+              if process(req)
+                make_result_archive(req)
+              end
             end
 
             # remove the request from request table
@@ -127,13 +130,13 @@ module Pione
       # Fetch source files in the request.
       def fetch(req)
         # push status message
-        Global.io.push(:status, "START_FETCHING", :to => req.session_id)
+        Global.io.push(:status, "START_FETCHING", :to => req.session_id) if req.active
 
         # fetch source files
         req.fetch
 
         # push status message
-        Global.io.push(:status, "END_FETCHING", :to => req.session_id)
+        Global.io.push(:status, "END_FETCHING", :to => req.session_id) if req.active
       end
 
       # Process the request.
@@ -148,7 +151,7 @@ module Pione
         @message_log_receiver.session_id = req.session_id
 
         # push status message
-        Global.io.push(:status, "START_PROCESSING", :to => req.session_id)
+        Global.io.push(:status, "START_PROCESSING", :to => req.session_id) if req.active
 
         # spawn `pione-client`
         spawner = spawn_pione_client(req)
@@ -157,8 +160,13 @@ module Pione
         # wait to finish processing
         spawner.thread.join if spawner.thread
 
+        # process killed if the request is not active
+        return false unless req.active
+
         # push status message
         Global.io.push(:status, "END_PROCESSING", :to => req.session_id)
+
+        return true
       rescue Object => e
         msg = "An error has raised when pione-webclient was processing a job for %s : %s"
         Log::SystemLog.error(msg % [req.session_id, e.message])
