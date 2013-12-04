@@ -11,6 +11,7 @@ gem 'thin', '~> 1.6.1'
 gem 'rake'
 
 group 'development' do
+  gem 'foreman'
   gem 'bacon'
 end
 
