@@ -105,6 +105,37 @@ h1 {
 }
 
 /* ------------------------------------------------------------ *
+   Job Status & Server Status
+ * ------------------------------------------------------------ */
+
+#status-box {
+    position: fixed;
+    right: 1em;
+    bottom: 1em;
+    font-size: 85%;
+    opacity: 0.90;
+}
+
+#status-box div {
+    padding: 0.2em 1em;
+    border-radius: 3px;
+    font-weight: 700;
+    display: inline-block;
+}
+
+#status-box div.good {
+    background-color: #8EFF1C;
+}
+
+#status-box div.bad {
+    background-color: #FF1C60;
+}
+
+#status-box div.unknown {
+    background-color: #C78EFF;
+}
+
+/* ------------------------------------------------------------ *
    Footer
  * ------------------------------------------------------------ */
 

@@ -98,6 +98,9 @@ PioneWebclient.clear = function () {
     PioneWebclient.enableRequest(false);
     PioneWebclient.showMessageLog(false);
     PioneWebclient.showTarget(false);
+    if (PioneWebclient.connection) {
+	PioneWebclient.showGoodJobStatus("Wait Request");
+    }
 };
 
 /* ------------------------------------------------------------ *
@@ -105,39 +108,62 @@ PioneWebclient.clear = function () {
  * ------------------------------------------------------------ */
 
 // Make a websocket connection.
-PioneWebclient.io = new RocketIO().connect();
+PioneWebclient.io = new RocketIO();
+
+// Handle "connect" messages.
+PioneWebclient.io.on("connect", function(data) {
+    PioneWebclient.connection = true;
+    PioneWebclient.setGoodJobStatus("Wait Request")
+    PioneWebclient.setGoodServerStatus("Connected");
+});
+
+// Handle "error" messages.
+PioneWebclient.io.on("error", function(data) {
+    PioneWebclient.connection = false;
+    PioneWebclient.setBadJobStatus("Disabled")
+    PioneWebclient.setBadServerStatus("Disconnected");
+});
 
 // Handle "status" messages.
 PioneWebclient.io.on("status", function(name) {
     switch(name) {
     case "ACCEPTED":
+	PioneWebclient.setGoodJobStatus("Queued");
 	PioneWebclient.showSuccess("Your request was accepted.");
 	break;
     case "BUSY":
+	PioneWebclient.setGoodJobStatus("Rejected");
 	PioneWebclient.showError("Server is busy now, please try again later.");
 	break;
     case "START_FETCHING":
+	PioneWebclient.setGoodJobStatus("Fetching");
 	PioneWebclient.showInfo("PIONE is fetching your source files...");
 	break;
     case "END_FETCHING":
+	PioneWebclient.setGoodJobStatus("Wait Processing");
 	PioneWebclient.showSuccess("Your source files have been fetched.");
 	break;
     case "FETCH_ERROR":
-	PioneWebclient.showError("PIONE failed to download source files.");
+	PioneWebclient.setBadJobStatus("Error");
+	PioneWebclient.showError("PIONE failed to fetch source files.");
 	break;
-    case "PROCESSING":
+    case "START_PROCESSING":
+	PioneWebclient.setGoodJobStatus("Processing");
 	PioneWebclient.showInfo("PIONE starts processing your job.");
 	if ($("#message-log:visible").length == 0) {
 	    PioneWebclient.showMessageLog(true);
 	}
 	break;
-    case "FINISHING":
+    case "END_PROCESSING":
+	PioneWebclient.setGoodJobStatus("Archiving");
 	PioneWebclient.showInfo("PIONE finishes processing your job.");
 	break;
     case "COMPLETED":
+	PioneWebclient.setGoodJobStatus("Completed");
 	PioneWebclient.showSuccess("Your job completed.");
 	break;
     case "SHUTDOWN":
+	PioneWebclient.setBadJobStatus("Shutdowned");
 	PioneWebclient.showError("PIONE Webserver shutdowned. Please retry your job later, sorry.")
 	break;
     }
@@ -209,6 +235,56 @@ PioneWebclient.showWarning = function(msg) {PioneWebclient.showAleart("warning",
 PioneWebclient.showError = function(msg) {PioneWebclient.showAleart("danger", "Error", msg)}
 
 /* ------------------------------------------------------------ *
+   Job & Server Status
+ * ------------------------------------------------------------ */
+
+// Set the job status.
+PioneWebclient.setStatus = function (id, type, status) {
+    // setup glyphicon name
+    var glyphicon_name;
+    switch (type) {
+    case "good":
+	glyphicon_name = "glyphicon-ok-sign";
+	break;
+    case "bad":
+	glyphicon_name = "glyphicon-ban-circle";
+	break;
+    case "unknown":
+	glyphicon_name = "glyphicon-question-sign";
+	break;
+    }
+
+    // set glyphicon
+    $(id + " span.glyphicon")
+	.removeClass("glyphicon-question-sign glyphicon-ok-sign glyphicon-ban-circle")
+	.addClass(glyphicon_name);
+
+    // set status class
+    $(id).removeClass("good bad unknown").addClass(type);
+
+    // set status name
+    $(id + " span.status-name").text(status);
+};
+
+// Set the job status for good situations.
+PioneWebclient.setGoodJobStatus = function (name) {
+    PioneWebclient.setStatus("#job-status", "good", name);
+};
+
+// Set the job status for bad situations.
+PioneWebclient.setBadJobStatus = function (name) {
+    PioneWebclient.setStatus("#job-status", "bad", name);
+};
+
+PioneWebclient.setGoodServerStatus = function(status) {
+    PioneWebclient.setStatus("#server-status", "good", status);
+}
+
+PioneWebclient.setBadServerStatus = function(status) {
+    PioneWebclient.setStatus("#server-status", "bad", status)
+}
+
+/* ------------------------------------------------------------ *
    Document Ready Actions
  * ------------------------------------------------------------ */
 
@@ -218,4 +294,7 @@ $(document).ready(function() {
     $("#request").on("click", function () {PioneWebclient.sendRequest()});
     $("#clear").on("click", function () {PioneWebclient.clear()});
     PioneWebclient.setupChooser();
+
+    // connect websocket server
+    PioneWebclient.io.connect();
 });

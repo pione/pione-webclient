@@ -10,7 +10,7 @@ require 'pione/log/webclient-message-log-receiver'
 require 'pione/front/webclient-front'
 require 'pione/command/pione-webclient'
 require 'pione/webclient/webclient-exception'
-require 'pione/webclient/job-manager'
+require 'pione/webclient/job-queue'
 require 'pione/webclient/application'
 
 #

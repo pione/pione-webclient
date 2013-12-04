@@ -57,7 +57,7 @@ module Pione
       def setup_message_log_receiver
         receiver = Log::WebclientMessageLogReceiver.new
         Global.front[:message_log_receiver] = receiver
-        Global.job_manager.message_log_receiver = receiver
+        Global.job_queue.message_log_receiver = receiver
       end
 
       # Setup webclient's running environment.

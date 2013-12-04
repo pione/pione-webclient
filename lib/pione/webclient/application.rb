@@ -33,17 +33,17 @@ module Pione
 
       # Request a job.
       Global.io.on("request") do |data, client|
-        Global.job_manager.request(client.session, data["ppg"], data["files"])
+        Global.job_queue.request(client.session, data["ppg"], data["files"])
       end
 
       # Cancel the job.
       Global.io.on("cancel") do |_, client|
-        Global.job_manager.cancel(client.session)
+        Global.job_queue.cancel(client.session)
       end
 
       # Send the processing result zip file of the session.
       get '/result/:uuid/*.zip' do
-        if zip_location = Global.job_manager.zip(params[:uuid])
+        if zip_location = Global.job_queue.result(params[:uuid])
           content_type "application/zip"
           last_modified zip_location.mtime
 
