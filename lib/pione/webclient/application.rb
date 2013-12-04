@@ -5,6 +5,7 @@ module Pione
       set :server, 'thin'
       set :port, Global.webclient_port
       set :public_folder, Global.webclient_root + 'public'
+      use Rack::CommonLogger
 
       #
       # common
