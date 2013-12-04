@@ -277,12 +277,24 @@ PioneWebclient.setBadJobStatus = function (name) {
     PioneWebclient.setStatus("#job-status", "bad", name);
 };
 
+// Set the job status for unknown situations.
+PioneWebclient.setUnknownJobStatus = function (name) {
+    PioneWebclient.setStatus("#job-status", "unknown", name);
+};
+
+// Set the server status for good situations.
 PioneWebclient.setGoodServerStatus = function(status) {
     PioneWebclient.setStatus("#server-status", "good", status);
 }
 
+// Set the server status for bad situations.
 PioneWebclient.setBadServerStatus = function(status) {
     PioneWebclient.setStatus("#server-status", "bad", status)
+}
+
+// Set the server status for unknown situations.
+PioneWebclient.setUnknownServerStatus = function(status) {
+    PioneWebclient.setStatus("#server-status", "unknown", status)
 }
 
 /* ------------------------------------------------------------ *
