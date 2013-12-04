@@ -117,6 +117,13 @@ PioneWebclient.io.on("connect", function(data) {
     PioneWebclient.setGoodServerStatus("Connected");
 });
 
+// Handle "disconnect" messages.
+PioneWebclient.io.on("disconnect", function(data) {
+    PioneWebclient.connection = true;
+    PioneWebclient.setBadJobStatus("Disabled")
+    PioneWebclient.setBadServerStatus("Disconnected");
+});
+
 // Handle "error" messages.
 PioneWebclient.io.on("error", function(data) {
     PioneWebclient.connection = false;
