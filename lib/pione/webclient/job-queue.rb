@@ -196,6 +196,32 @@ module Pione
       end
 
       def make_result_archive(req)
+        # xes log
+        formatter = Log::ProcessLog[:xes]
+        log = formatter.read(req.base_location + "pione-process.log")
+        log_id = log.keys.sort.last
+
+        # agent.xes
+        agent_filter = Proc.new do |trace|
+          trace.attributes.include?(XES.string("pione:traceType", "agent_activity"))
+        end
+        agent_xes = log[log_id].format([agent_filter])
+        (req.base_location + "pione-process-agent.xes").write(agent_xes)
+
+        # rule.xes
+        rule_filter = Proc.new do |trace|
+          trace.attributes.include?(XES.string("pione:traceType", "rule_process"))
+        end
+        rule_xes = log[log_id].format([rule_filter])
+        (req.base_location + "pione-process-rule.xes").write(rule_xes)
+
+        # task.xes
+        task_filter = Proc.new do |trace|
+          trace.attributes.include?(XES.string("pione:traceType", "task_process"))
+        end
+        task_xes = log[log_id].format([task_filter])
+        (req.base_location + "pione-process-task.xes").write(task_xes)
+
         # make the result zip file
         uuid = Util::UUID.generate
         zip_location = req.make_zip
