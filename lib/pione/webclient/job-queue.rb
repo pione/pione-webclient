@@ -160,13 +160,14 @@ module Pione
         @processing_pid = spawner.pid
 
         # wait to finish processing
-        thread = spawner.thread
-        thread.join if thread
+        if thread = spawner.thread
+          status = thread.value
 
-        # check the process result
-        if thread.nil? or thread.value.nil? or not(thread.value.success?)
-          Global.io.push(:status, {name: "PROCESS_ERROR"}, :to => req.session_id) if req.active
-          return false
+          # check the process result
+          if status.kind_of?(Process::Status) and not(status.success?)
+            Global.io.push(:status, {name: "PROCESS_ERROR"}, :to => req.session_id) if req.active
+            return false
+          end
         end
 
         # process killed if the request is not active
