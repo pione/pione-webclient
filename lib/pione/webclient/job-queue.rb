@@ -160,7 +160,14 @@ module Pione
         @processing_pid = spawner.pid
 
         # wait to finish processing
-        spawner.thread.join if spawner.thread
+        thread = spawner.thread
+        thread.join if thread
+
+        # check the process result
+        if thread.nil? or thread.value.nil? or not(thread.value.success?)
+          Global.io.push(:status, {name: "PROCESS_ERROR"}, :to => req.session_id) if req.active
+          return false
+        end
 
         # process killed if the request is not active
         return false unless req.active
@@ -172,7 +179,7 @@ module Pione
       rescue Object => e
         msg = "An error has raised when pione-webclient was processing a job for %s : %s"
         Log::SystemLog.error(msg % [req.session_id, e.message])
-        Global.io.push(:status, {name: "ERROR"}, :to => req.session_id)
+        Global.io.push(:status, {name: "PROCESS_ERROR"}, :to => req.session_id)
       ensure
         @message_log_receiver.session_id = nil
         @processing_request = nil

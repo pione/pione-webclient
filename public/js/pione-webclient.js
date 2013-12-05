@@ -183,6 +183,8 @@ PioneWebclient.io.on("status", function(data) {
     case "FETCH_ERROR":
 	PioneWebclient.setBadJobStatus("Error");
 	PioneWebclient.showError("PIONE failed to fetch source files.");
+	PioneWebclient.enableRequest(true);
+	PioneWebclient.enableCancel(false);
 	break;
     case "START_PROCESSING":
 	PioneWebclient.setGoodJobStatus("Processing");
@@ -190,6 +192,12 @@ PioneWebclient.io.on("status", function(data) {
 	if ($("#message-log:visible").length == 0) {
 	    PioneWebclient.showMessageLog(true);
 	}
+	break;
+    case "PROCESS_ERROR":
+	PioneWebclient.setBadJobStatus("Error");
+	PioneWebclient.showError("PIONE failed to process your job.");
+	PioneWebclient.enableRequest(true);
+	PioneWebclient.enableCancel(false);
 	break;
     case "END_PROCESSING":
 	PioneWebclient.setGoodJobStatus("Archiving");
