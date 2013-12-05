@@ -143,6 +143,18 @@ h1 {
     border-color: #77c;
 }
 
+#follow-message-log {
+    color: #333;
+    text-shadow: 3px 3px 3px #aaa;
+    background: none;
+    border: none;
+    display: inline-block;
+}
+
+#follow-message-log.follow {
+    color: #d33;
+}
+
 /* ------------------------------------------------------------ *
    Footer
  * ------------------------------------------------------------ */

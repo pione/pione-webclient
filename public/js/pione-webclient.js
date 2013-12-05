@@ -88,6 +88,25 @@ PioneWebclient.showMessageLog = function (state) {
     }
 }
 
+// Scroll by adding a line of message log.
+PioneWebclient.scrollByMessageLog = function () {
+    if (PioneWebclient.followMessageLog) {
+	var size = parseInt($("#message-log").css("line-height"));
+	scrollBy(0, size);
+    }
+}
+
+// Set follow message log mode.
+PioneWebclient.setFollowMessageLog = function (state) {
+    PioneWebclient.followMessageLog = state;
+    $("#follow-message-log").toggleClass("follow", state);
+};
+
+// Toggle follow message log mode.
+PioneWebclient.toggleFollowMessageLog = function () {
+    PioneWebclient.setFollowMessageLog(!PioneWebclient.followMessageLog);
+};
+
 // Show target section or not.
 PioneWebclient.showTarget = function (state) {
     if (state) {
@@ -215,6 +234,9 @@ PioneWebclient.io.on("message-log", function(data) {
     // content
     area.append($("<span/>", {text: data["content"], class: "content"}));
     area.append("\n");
+
+    // follow logs
+    PioneWebclient.scrollByMessageLog();
 });
 
 /* ------------------------------------------------------------ *
@@ -333,7 +355,10 @@ $(document).ready(function() {
     $("#request").on("click", function () {PioneWebclient.sendRequest()});
     $("#cancel").on("click", function () {PioneWebclient.sendCancel()});
     $("#clear").on("click", function () {PioneWebclient.clear()});
+    $("#follow-message-log").on("click", function () {PioneWebclient.toggleFollowMessageLog()});
     PioneWebclient.setupChooser();
+
+    PioneWebclient.setFollowMessageLog(true);
 
     // connect websocket server
     PioneWebclient.io.connect();

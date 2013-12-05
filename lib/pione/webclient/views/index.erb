@@ -42,13 +42,13 @@
     <section id="operation">
       <h2>Operations</h2>
       <div class="btn-group btn-group-justified">
- 	<a href="#" class="btn btn-lg btn-default disabled" id="request">
+	<a class="btn btn-lg btn-default disabled" id="request">
 	  <span class="glyphicon glyphicon-play"></span> Request
 	</a>
- 	<a href="#" class="btn btn-lg btn-default disabled" id="cancel">
+	<a class="btn btn-lg btn-default disabled" id="cancel">
 	  <span class="glyphicon glyphicon-stop"></span> Cancel
 	</a>
-	<a href="#" class="btn btn-lg btn-default" id="clear">
+	<a class="btn btn-lg btn-default" id="clear">
 	  <span class="glyphicon glyphicon-trash"></span> Clear
 	</a>
       </div>
@@ -79,6 +79,9 @@
 
     <!-- Status Box -->
     <div id="status-box">
+      <button id="follow-message-log">
+	<span class="glyphicon glyphicon-arrow-down"></span>
+      </button>
       <div class="unknown" id="job-status">
 	<span class="glyphicon glyphicon-question-sign"></span>
 	Job: <span class="status-name">Unknown</span>
