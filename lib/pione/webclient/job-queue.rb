@@ -271,18 +271,20 @@ module Pione
 
         # size
         fetch_size = files.size + 1
-        b.call(0, fetch_size)
+        b.call(1, fetch_size)
 
         # fetch PPG file
         self.local_ppg_location = dir + "ppg" + ppg.basename
         ppg.copy(local_ppg_location, keep_mtime: false)
-        b.call(1, fetch_size)
+        b.call(2, fetch_size)
 
         # donwload input files
         self.local_input_location = dir + "input"
         files.each_with_index do |file, i|
           file.copy(local_input_location + file.basename, keep_mtime: false)
-          b.call(i+1, fetch_size)
+          unless i + 2 > fetch_size
+            b.call(i+2, fetch_size)
+          end
         end
       end
 
