@@ -158,8 +158,8 @@ PioneWebclient.io.on("error", function(data) {
 });
 
 // Handle "status" messages.
-PioneWebclient.io.on("status", function(name) {
-    switch(name) {
+PioneWebclient.io.on("status", function(data) {
+    switch(data["name"]) {
     case "ACCEPTED":
 	PioneWebclient.setGoodJobStatus("Queued");
 	PioneWebclient.showSuccess("Your request was accepted.");
@@ -172,6 +172,9 @@ PioneWebclient.io.on("status", function(name) {
     case "START_FETCHING":
 	PioneWebclient.setGoodJobStatus("Fetching");
 	PioneWebclient.showInfo("PIONE is fetching your source files...");
+	break;
+    case "FETCH":
+	PioneWebclient.setGoodJobStatus("Fetching " + data["number"] + "/" + data["total"]);
 	break;
     case "END_FETCHING":
 	PioneWebclient.setGoodJobStatus("Wait Processing");

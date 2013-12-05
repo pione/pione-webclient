@@ -31,7 +31,7 @@ module Pione
       def request(session_id, ppg, files)
         if @fetch_queue.size > Global.job_queue_max
           # server is busy now
-          Global.io.push("status", "BUSY", to: session_id)
+          Global.io.push("status", {name: "BUSY"}, to: session_id)
         else
           # cancel if there exists the session's old request already
           cancel(session_id) if @request[session_id]
@@ -44,7 +44,7 @@ module Pione
           @fetch_queue.push(req)
 
           # send an "ACCEPTED" message
-          Global.io.push("status", "ACCEPTED", to: session_id) if req.active
+          Global.io.push("status", {name: "ACCEPTED"}, to: session_id) if req.active
         end
       end
 
@@ -64,7 +64,7 @@ module Pione
           end
 
           # push status message
-          Global.io.push(:status, "CANCELED", :to => session_id)
+          Global.io.push(:status, {name: "CANCELED"}, :to => session_id)
         end
       end
 
@@ -95,7 +95,7 @@ module Pione
                 @process_queue.push(req)
               rescue Object => e
                 # send status
-                Global.io.push(:status, "FETCH_ERROR", to: req.session_id) if req.active
+                Global.io.push(:status, {name: "FETCH_ERROR"}, to: req.session_id) if req.active
 
                 # clear the request
                 @request.delete(req.session_id)
@@ -130,13 +130,15 @@ module Pione
       # Fetch source files in the request.
       def fetch(req)
         # push status message
-        Global.io.push(:status, "START_FETCHING", :to => req.session_id) if req.active
+        Global.io.push(:status, {name: "START_FETCHING"}, :to => req.session_id) if req.active
 
         # fetch source files
-        req.fetch
+        req.fetch do |i, size|
+          Global.io.push(:status, {name: "FETCH", number: i, total: size}, :to => req.session_id) if req.active
+        end
 
         # push status message
-        Global.io.push(:status, "END_FETCHING", :to => req.session_id) if req.active
+        Global.io.push(:status, {name: "END_FETCHING"}, :to => req.session_id) if req.active
       end
 
       # Process the request.
@@ -151,7 +153,7 @@ module Pione
         @message_log_receiver.session_id = req.session_id
 
         # push status message
-        Global.io.push(:status, "START_PROCESSING", :to => req.session_id) if req.active
+        Global.io.push(:status, {name: "START_PROCESSING"}, :to => req.session_id) if req.active
 
         # spawn `pione-client`
         spawner = spawn_pione_client(req)
@@ -164,12 +166,13 @@ module Pione
         return false unless req.active
 
         # push status message
-        Global.io.push(:status, "END_PROCESSING", :to => req.session_id)
+        Global.io.push(:status, {name: "END_PROCESSING"}, :to => req.session_id)
 
         return true
       rescue Object => e
         msg = "An error has raised when pione-webclient was processing a job for %s : %s"
         Log::SystemLog.error(msg % [req.session_id, e.message])
+        Global.io.push(:status, {name: "ERROR"}, :to => req.session_id)
       ensure
         @message_log_receiver.session_id = nil
         @processing_request = nil
@@ -238,7 +241,7 @@ module Pione
         Global.io.push(:result, {uuid: uuid, filename: filename}, :to => req.session_id)
 
         # push status message
-        Global.io.push(:status, "COMPLETED", :to => req.session_id)
+        Global.io.push(:status, {name: "COMPLETED"}, :to => req.session_id)
       end
     end
 
@@ -255,16 +258,24 @@ module Pione
       # Fetch source files of the request.
       #
       # @return [void]
-      def fetch
+      def fetch(&b)
         dir = Location[Temppath.mkdir]
+
+        # size
+        fetch_size = files.size + 1
+        b.call(0, fetch_size)
 
         # fetch PPG file
         self.local_ppg_location = dir + "ppg" + ppg.basename
         ppg.copy(local_ppg_location, keep_mtime: false)
+        b.call(1, fetch_size)
 
         # donwload input files
         self.local_input_location = dir + "input"
-        files.each {|file| file.copy(local_input_location + file.basename, keep_mtime: false)}
+        files.each_with_index do |file, i|
+          file.copy(local_input_location + file.basename, keep_mtime: false)
+          b.call(i+1, fetch_size)
+        end
       end
 
       # Make a zip archive as result of the request.
