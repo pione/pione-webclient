@@ -6,12 +6,13 @@ module Pione
       attr_reader :process_thread
       attr_accessor :message_log_receiver
 
-      def initialize
+      def initialize(model)
         @fetch_queue = Queue.new
         @process_queue = SizedQueue.new(Global.job_queue_max)
         @request = Hash.new
         @result = Hash.new
         @message_log_receiver = nil
+        @model = model
 
         # run loops
         run_fetching
@@ -179,7 +180,8 @@ module Pione
         return true
       rescue Object => e
         msg = "An error has raised when pione-webclient was processing a job for %s : %s"
-        Log::SystemLog.error(msg % [req.session_id, e.message])
+        msg = msg % [req.session_id, e.message]
+        Log::SystemLog.error(msg)
         Global.io.push(:status, {name: "PROCESS_ERROR"}, :to => req.session_id)
       ensure
         @message_log_receiver.session_id = nil
@@ -193,14 +195,14 @@ module Pione
       #   spawned process
       def spawn_pione_client(req)
         # bundle exec pione-client
-        spawner = Command::Spawner.new("pione-client")
+        spawner = Command::Spawner.new(@model, "pione-client")
 
         # options
         if req.local_input_location.exist?
           spawner.option("--input", req.local_input_location.address)
         end
         spawner.option("--output", req.base_location.address)
-        spawner.option("--parent-front", Global.front.uri)
+        spawner.option("--parent-front", @model[:front].uri)
         # if Global.presence_notification_addresses
         #   Global.presence_notification_addresses.each do |address|
         #     spawner.option("--presence-notification-address", address.to_s)

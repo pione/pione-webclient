@@ -39,9 +39,15 @@ module Pione
       #
 
       phase(:setup) do |seq|
+        seq << :job_queue
         seq << :dropins_app_key
         seq << :message_log_receiver
         seq << :running_environment
+      end
+
+      setup(:job_queue) do |item|
+        item.desc = "Start a job queue"
+        item.process {Global.job_queue = Webclient::JobQueue.new(model)}
       end
 
       setup(:dropins_app_key) do |item|
@@ -51,7 +57,7 @@ module Pione
           if dropins_app_key_path.exist?
             Global.dropins_app_key = dropins_app_key_path.read.chomp
           else
-            if option[:environment] == :production
+            if model[:environment] == :production
               abort("You should create Drop-ins app key file at %s" % dropins_app_key_path)
             else
               Global.dropins_app_key = ""

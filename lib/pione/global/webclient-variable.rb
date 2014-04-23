@@ -22,7 +22,6 @@ module Pione
 
     define_internal_item(:job_queue) do |item|
       item.desc = "Job manager for webclient."
-      item.define_updater { Webclient::JobQueue.new}
     end
 
     define_external_item(:job_queue_max) do |item|
