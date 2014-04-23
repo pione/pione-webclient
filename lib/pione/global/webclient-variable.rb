@@ -29,6 +29,11 @@ module Pione
       item.init = 5
     end
 
+    define_internal_item(:interactive_operation_manager) do |item|
+      item.desc = "Interactive operation manager for webclient."
+      item.init = Webclient::InteractiveOperationManager.new
+    end
+
     define_external_item(:stand_alone) do |item|
       item.desc = "Spawn pione-client with stand alone mode"
       item.init = false

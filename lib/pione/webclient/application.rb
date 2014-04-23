@@ -42,6 +42,11 @@ module Pione
         Global.job_queue.cancel(client.session)
       end
 
+      # finish interactive operation
+      Global.io.on("finish-interactive-operation") do |data, client|
+        Global.interactive_operation_manager.finish(client.session, data["result"])
+      end
+
       # Send the processing result zip file of the session.
       get '/result/:uuid/*.zip' do
         if zip_location = Global.job_queue.result(params[:uuid])

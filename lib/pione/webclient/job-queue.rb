@@ -7,12 +7,12 @@ module Pione
       attr_accessor :message_log_receiver
 
       def initialize(model)
+        @model = model
         @fetch_queue = Queue.new
         @process_queue = SizedQueue.new(Global.job_queue_max)
         @request = Hash.new
         @result = Hash.new
         @message_log_receiver = nil
-        @model = model
 
         # run loops
         run_fetching
@@ -209,6 +209,8 @@ module Pione
         #   end
         # end
         spawner.option("--stand-alone") if Global.stand_alone
+        spawner.option("--request-from", @model[:front].uri)
+        spawner.option("--session-id", req.session_id)
 
         # arguements
         spawner.option(req.local_ppg_location.address)
