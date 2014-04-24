@@ -7,11 +7,11 @@ module Pione
         super(cmd, Global.webclient_front_port_range)
       end
 
-      def request_interactive_operation(session_id, ui_definition)
-        if Global.job_queue
-          return Global.interactive_operation_manager.request(session_id, ui_definition)
+      def request_interactive_operation(session_id, content, script)
+        if Global.interactive_operation_manager
+          return Global.interactive_operation_manager.request(session_id, content, script)
         else
-          raise InteractiveOperationFailure.new("Job queue not found.")
+          raise Webclient::InteractiveOperationFailure.new("Interactive operation manager not found.")
         end
       end
     end

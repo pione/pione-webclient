@@ -44,7 +44,7 @@ module Pione
 
       # finish interactive operation
       Global.io.on("finish-interactive-operation") do |data, client|
-        Global.interactive_operation_manager.finish(client.session, data["result"])
+        Global.interactive_operation_manager.finish(client.session, data)
       end
 
       # Send the processing result zip file of the session.

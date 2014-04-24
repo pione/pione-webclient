@@ -31,7 +31,6 @@ module Pione
 
     define_internal_item(:interactive_operation_manager) do |item|
       item.desc = "Interactive operation manager for webclient."
-      item.init = Webclient::InteractiveOperationManager.new
     end
 
     define_external_item(:stand_alone) do |item|

@@ -209,8 +209,12 @@ module Pione
         #   end
         # end
         spawner.option("--stand-alone") if Global.stand_alone
+
+        # session
         spawner.option("--request-from", @model[:front].uri)
         spawner.option("--session-id", req.session_id)
+
+        spawner.option("--client-ui", "Browser")
 
         # arguements
         spawner.option(req.local_ppg_location.address)

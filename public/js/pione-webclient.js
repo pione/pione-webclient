@@ -250,6 +250,18 @@ PioneWebclient.io.on("message-log", function(data) {
     PioneWebclient.scrollByMessageLog();
 });
 
+// Handle "interactive" messages.
+PioneWebclient.io.on("interactive", function(data) {
+    // load contents
+    PioneWebclient.renderInteractiveOperationCanvas(data["content"]);
+
+    // evaluate script
+    eval(data["script"]);
+
+    // start interactive operation
+    PioneWebclient.showInteractiveOperationCanvas();
+});
+
 /* ------------------------------------------------------------ *
    Job Handler
  * ------------------------------------------------------------ */
@@ -357,6 +369,37 @@ PioneWebclient.setUnknownServerStatus = function(status) {
 }
 
 /* ------------------------------------------------------------ *
+   Interactive operation
+ * ------------------------------------------------------------ */
+PioneWebclient.showInteractiveOperationCanvas = function() {
+    $("#interactive").show();
+}
+
+PioneWebclient.clearInteractiveOperationCanvas = function() {
+    $("#interactive").hide();
+    $("#interactive .canvas").empty();
+}
+
+PioneWebclient.renderInteractiveOperationCanvas = function (content) {
+    $("#interactive .canvas").html(content);
+}
+
+PioneWebclient.setupInteractiveOperationEvent = function() {
+    document.addEventListener("pione-interactive-result", function(event) {
+	// send to finish
+	PioneWebclient.io.push("finish-interactive-operation", event.result);
+
+	// clear the canvas
+	PioneWebclient.clearInteractiveOperationCanvas();
+    });
+}
+
+PioneWebclient.initInteractiveOperation = function () {
+    PioneWebclient.clearInteractiveOperationCanvas();
+    PioneWebclient.setupInteractiveOperationEvent();
+}
+
+/* ------------------------------------------------------------ *
    Document Ready Actions
  * ------------------------------------------------------------ */
 
@@ -367,6 +410,7 @@ $(document).ready(function() {
     $("#cancel").on("click", function () {PioneWebclient.sendCancel()});
     $("#clear").on("click", function () {PioneWebclient.clear()});
     $("#follow-message-log").on("click", function () {PioneWebclient.toggleFollowMessageLog()});
+    PioneWebclient.initInteractiveOperation();
     PioneWebclient.setupChooser();
 
     PioneWebclient.setFollowMessageLog(true);

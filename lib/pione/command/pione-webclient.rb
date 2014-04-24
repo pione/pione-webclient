@@ -40,6 +40,7 @@ module Pione
 
       phase(:setup) do |seq|
         seq << :job_queue
+        seq << :interactive_operation_manager
         seq << :dropins_app_key
         seq << :message_log_receiver
         seq << :running_environment
@@ -48,6 +49,13 @@ module Pione
       setup(:job_queue) do |item|
         item.desc = "Start a job queue"
         item.process {Global.job_queue = Webclient::JobQueue.new(model)}
+      end
+
+      setup(:interactive_operation_manager) do |item|
+        item.desc = "Start an interactive operation manager"
+        item.process do
+          Global.interactive_operation_manager = Pione::Webclient::InteractiveOperationManager.new
+        end
       end
 
       setup(:dropins_app_key) do |item|
