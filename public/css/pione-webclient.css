@@ -15,6 +15,12 @@ h2 {
     font-weight: 700;
 }
 
+h3 {
+    font-family: 'Inconsolata', sans-serif;
+    font-weight: 700;
+    font-size: 130%;
+}
+
 /* ------------------------------------------------------------ *
    Header
  * ------------------------------------------------------------ */
@@ -46,6 +52,23 @@ h1 {
 
 #source dd { margin-bottom: 1em; }
 #source .source-names { padding-left: 1em; }
+
+.file {
+    display: inline-block;
+    overflow: hidden;
+    position: relative;
+}
+
+.file input[type="file"] {
+    opacity: 0;
+    filter: progid:DXImageTransform.Microsoft.Alpha(opacity=0);
+    position: absolute;
+    right: 0;
+    top: 0;
+    margin: 0;
+    font-size: 100px;
+    cursor: pointer;
+}
 
 /* ------------------------------------------------------------ *
    Operation

@@ -39,11 +39,35 @@ module Pione
       #
 
       phase(:setup) do |seq|
+        seq << :environment
+        seq << :resource
         seq << :job_queue
         seq << :interactive_operation_manager
         seq << :dropins_app_key
         seq << :message_log_receiver
         seq << :running_environment
+      end
+
+      setup(:environment) do |item|
+        item.desc = "Setup the webclient's environment"
+        item.process {model[:environment] ||= :development}
+      end
+
+      setup(:resource) do |item|
+        item.desc = "Load application resource"
+        item.process do
+          Global.resource = Webclient::Resource.new
+          if model[:resource_file]
+            path = model[:resource_file]
+          else
+            path = Webclient::Resource.default_resource_file(model[:environment])
+          end
+          begin
+            Global.resource.load(path)
+          rescue Errno::ENOENT
+            abort("Resource file not found: %s" % path)
+          end
+        end
       end
 
       setup(:job_queue) do |item|

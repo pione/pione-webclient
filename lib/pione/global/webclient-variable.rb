@@ -41,5 +41,19 @@ module Pione
     define_internal_item(:dropins_app_key) do |item|
       item.desc = "Drop-ins app key"
     end
+
+    define_internal_item(:resource) do |item|
+      item.desc = "Resource table"
+    end
+
+    define_internal_item(:bootstrap_version) do |item|
+      item.desc = "Version of Bootstrap"
+      item.init = "3.1.1"
+    end
+
+    define_internal_item(:jquery_version) do |item|
+      item.desc = "Version of jQuery"
+      item.init = "1.10.2"
+    end
   end
 end

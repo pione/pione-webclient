@@ -1,0 +1,8 @@
+bootstrap_css:
+  "lib/css/bootstrap.css"
+bootstrap_theme_css:
+  "lib/css/bootstrap-theme.css"
+bootstrap_js:
+  "lib/js/bootstrap.js"
+jquery_js:
+  "lib/js/jquery.js"

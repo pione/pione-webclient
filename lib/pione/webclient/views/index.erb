@@ -3,10 +3,17 @@
   <head>
     <meta charset="utf-8">
     <title>PIONE Webclient</title>
-    <link rel="stylesheet" href="lib/css/bootstrap.css"/>
-    <link rel="stylesheet" href="lib/css/bootstrap-theme.css"/>
-    <link rel="stylesheet" href="css/pione-webclient.css"/>
+
+    <!-- ------------------------------------------------------------ -->
+    <!-- CSS                                                          -->
+    <!-- ------------------------------------------------------------ -->
+    <!-- bootstrap -->
+    <link rel="stylesheet" href="<%= Pione::Global.resource[:bootstrap_css] %>"/>
+    <link rel="stylesheet" href="<%= Pione::Global.resource[:bootstrap_theme_css] %>"/>
+    <!-- fonts -->
     <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto+Condensed:700italic|Roboto:100|Inconsolata:700,400"/>
+    <!-- PIONE -->
+    <link rel="stylesheet" href="css/pione-webclient.css"/>
   </head>
 
   <body>
@@ -16,25 +23,45 @@
       <div>PIONE is a rule based workflow engine. Hello, PIONE users!</div>
     </section>
 
-    <!-- Source -->
+    <!-- Source Panel -->
     <section id="source">
       <h2>Select a PIONE Package and Source Files</h2>
       <div id="source-panel" class="panel panel-default">
-	<dl class="panel-body">
-	  <dt>PIONE Package</dt>
-	  <dd>
+	<div class="panel-body">
+	  <h3>PIONE Package</h3>
+	  <!-- buttons for selecting a source PPG file -->
+	  <div>
 	    <input type="dropbox-chooser" name="selected-file" id="source-ppg-chooser" style="visibility: hidden;"
-		   data-link-type="direct" data-extensions=".ppg" />
-	    <span id="source-ppg" class="source-names"></span>
-	  </dd>
+		   data-link-type="direct" data-extensions=".ppg" /> or
+	    <div class="btn btn-xs btn-default file">
+	      <span class="glyphicon glyphicon-upload"></span> Direct Upload
+	      <input type="file" id="source-ppg-direct-uploader" />
+	    </div>
+	  </div>
 
-	  <dt>Source Files</dt>
-	  <dd>
+	  <!-- show a source PPG file -->
+	  <div>
+	    <span class="glyphicon glyphicon-file"></span>
+	    <span id="source-ppg" class="source-names">No package</span>
+	  </div>
+
+	  <h3>Source Files</h3>
+	  <!-- buttons for selecting source data files -->
+	  <div>
 	    <input type="dropbox-chooser" name="selected-file" id="source-files-chooser" style="visibility: hidden;"
-		   data-link-type="direct" data-multiselect="true" />
-	    <span id="source-files" class="source-names"></span>
-	  </dd>
-	</dl>
+		   data-link-type="direct" data-multiselect="true" /> or
+	    <div class="btn btn-xs btn-default file">
+	      <span class="glyphicon glyphicon-upload"></span> Direct Upload
+	      <input type="file" id="source-files-direct-uploader" multiple />
+	    </div>
+	  </div>
+
+	  <!-- show source data files -->
+	  <div>
+	    <span class="glyphicon glyphicon-file"></span>
+	    <span id="source-files" class="source-names">No package</span>
+	  </div>
+	</div>
       </div>
     </section>
 
@@ -122,10 +149,12 @@
       <div class="info">This client is working with PIONE <%= Pione::VERSION %>.</div>
     </section>
 
-    <!-- Script -->
+    <!-- ------------------------------------------------------------ -->
+    <!-- JS                                                           -->
+    <!-- ------------------------------------------------------------ -->
     <script src="lib/js/underscore.js"></script>
-    <script src="lib/js/jquery.js"></script>
-    <script src="lib/js/bootstrap.js"></script>
+    <script src="<%= Pione::Global.resource[:jquery_js] %>"></script>
+    <script src="<%= Pione::Global.resource[:bootstrap_js] %>"></script>
     <script src="rocketio/rocketio.js"></script>
     <script src="js/pione-webclient.js"></script>
     <script type="text/javascript" src="https://www.dropbox.com/static/api/1/dropins.js" id="dropboxjs" data-app-key="<%= Pione::Global.dropins_app_key %>"></script>

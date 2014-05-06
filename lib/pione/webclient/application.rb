@@ -29,12 +29,12 @@ module Pione
       end
 
       #
-      # job
+      # event handlers
       #
 
       # Request a job.
       Global.io.on("request") do |data, client|
-        Global.job_queue.request(client.session, data["ppg"], data["files"])
+        Global.job_queue.request(client.session, data["uploadMethod"], data["ppg"], data["files"])
       end
 
       # Cancel the job.
@@ -46,6 +46,25 @@ module Pione
       Global.io.on("finish-interactive-operation") do |data, client|
         Global.interactive_operation_manager.finish(client.session, data)
       end
+
+      #
+      # upload
+      #
+      post '/upload/ppg/:session_id' do
+        if (req = Global.job_queue.find_request(params[:session_id]))
+          req.upload_ppg(params[:file][:filename], params[:file][:tempfile].path)
+        end
+      end
+
+      post '/upload/file/:session_id' do
+        if (req = Global.job_queue.find_request(params[:session_id]))
+          req.upload_file(params[:file][:filename], params[:file][:tempfile].path)
+        end
+      end
+
+      #
+      # target files
+      #
 
       # Send the processing result zip file of the session.
       get '/result/:uuid/*.zip' do

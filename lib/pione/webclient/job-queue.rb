@@ -19,6 +19,16 @@ module Pione
         run_processing
       end
 
+      # Find a request object by session ID.
+      #
+      # @param [String] session_id
+      #   session ID
+      # @return [Request]
+      #   a request object
+      def find_request(session_id)
+        @request[session_id]
+      end
+
       # Add the request into the queue. It constraints max job size, so raise a
       # busy error if the request is not accepted.
       #
@@ -29,7 +39,7 @@ module Pione
       # @param files [Array<String>]
       #    list of URL of input files
       # @return [void]
-      def request(session_id, ppg, files)
+      def request(session_id, upload_method, ppg, files)
         if @fetch_queue.size > Global.job_queue_max
           # server is busy now
           Global.io.push("status", {name: "BUSY"}, to: session_id)
@@ -38,9 +48,7 @@ module Pione
           cancel(session_id) if @request[session_id]
 
           # register the request
-          _ppg = Location[URI.unescape(ppg)]
-          _files = files.map {|file| Location[URI.unescape(file)]}
-          req = Request.new(session_id, _ppg, _files)
+          req = Request.new(session_id, upload_method, ppg, files)
           @request[session_id] = req
           @fetch_queue.push(req)
 
@@ -264,6 +272,7 @@ module Pione
     # `Request` is a class that represents processing requests.
     class Request < StructX
       member :session_id
+      member :upload_method
       member :ppg
       member :files
       member :active, :default => true
@@ -271,29 +280,59 @@ module Pione
       member :local_input_location
       member :base_location, :default => lambda {Location[Temppath.mkdir]}
 
+      def initialize(*args)
+        super(*args)
+        @dir = Location[Temppath.mkdir]
+        @lock = Mutex.new
+        @cv = ConditionVariable.new
+      end
+
       # Fetch source files of the request.
       #
       # @return [void]
       def fetch(&b)
-        dir = Location[Temppath.mkdir]
-
         # size
         fetch_size = files.size + 1
         b.call(1, fetch_size)
 
         # fetch PPG file
-        self.local_ppg_location = dir + "ppg" + ppg.basename
-        ppg.copy(local_ppg_location, keep_mtime: false)
+        case self.upload_method
+        when "dropbox"
+          _ppg = Location[URI.unescape(ppg)]
+          self.local_ppg_location = @dir + "ppg" + _ppg.basename
+          _ppg.copy(local_ppg_location, keep_mtime: false)
+        when "direct"
+          self.local_ppg_location = @dir + "ppg" + ppg
+          Global.io.push("upload-ppg", ppg)
+          @lock.synchronize {@cv.wait(@lock)}
+        end
         b.call(2, fetch_size)
 
         # donwload input files
-        self.local_input_location = dir + "input"
+        self.local_input_location = @dir + "input"
         files.each_with_index do |file, i|
-          file.copy(local_input_location + file.basename, keep_mtime: false)
+          case self.upload_method
+          when "dropbox"
+            _file = Location[URI.unescape(file)]
+            _file.copy(local_input_location + _file.basename, keep_mtime: false)
+          when "direct"
+            Global.io.push("upload-file", file)
+            @lock.synchronize {@cv.wait(@lock)}
+          end
           unless i + 2 > fetch_size
             b.call(i+2, fetch_size)
           end
         end
+      end
+
+      def upload_ppg(filename, path)
+        Location[path].copy(local_ppg_location, keep_mtime: false)
+        @lock.synchronize {@cv.signal}
+      end
+
+      def upload_file(filename, path)
+        Location[path].copy(local_input_location + filename, keep_mtime: false)
+        @lock.synchronize {@cv.signal}
       end
 
       # Make a zip archive as result of the request.
