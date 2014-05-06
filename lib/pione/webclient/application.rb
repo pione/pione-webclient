@@ -79,6 +79,16 @@ module Pione
       end
 
       #
+      # Interactive Operation
+      #
+
+      get '/interactive/:session_id/(.*+)' do |path|
+        if (req = Global.job_queue.find_request(params[:session_id]))
+          send_file(req.working_directory + path)
+        end
+      end
+
+      #
       # Admin
       #
 
