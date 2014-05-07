@@ -279,6 +279,7 @@ module Pione
       member :local_ppg_location
       member :local_input_location
       member :base_location, :default => lambda {Location[Temppath.mkdir]}
+      member :interactive_front
 
       def initialize(*args)
         super(*args)

@@ -257,8 +257,21 @@ PioneWebclient.io.on("message-log", function(data) {
     PioneWebclient.scrollByMessageLog();
 });
 
-// Handle "interactive" messages.
-PioneWebclient.io.on("interactive", function(data) {
+// Handle "interactive-page" messages.
+PioneWebclient.io.on("interactive-page", function(data) {
+    // load contents
+    var link = $("<a>");
+    link.attr("href", data["url"]);
+    link.attr("target", "_blank");
+    link.text("Click to start interactive operation.");
+    PioneWebclient.renderInteractiveOperationCanvas($("<div>").append(link).html());
+
+    // start interactive operation
+    PioneWebclient.showInteractiveOperationCanvas();
+});
+
+// Handle "interactive-dialog" messages.
+PioneWebclient.io.on("interactive-dialog", function(data) {
     // load contents
     PioneWebclient.renderInteractiveOperationCanvas(data["content"]);
 
@@ -267,6 +280,11 @@ PioneWebclient.io.on("interactive", function(data) {
 
     // start interactive operation
     PioneWebclient.showInteractiveOperationCanvas();
+});
+
+PioneWebclient.io.on("finish-interactive-operation", function(data) {
+    // clear the canvas
+    PioneWebclient.clearInteractiveOperationCanvas();
 });
 
 // Handle "upload-ppg" messages.
@@ -422,9 +440,6 @@ PioneWebclient.setupInteractiveOperationEvent = function() {
     document.addEventListener("pione-interactive-result", function(event) {
 	// send to finish
 	PioneWebclient.io.push("finish-interactive-operation", event.result);
-
-	// clear the canvas
-	PioneWebclient.clearInteractiveOperationCanvas();
     });
 }
 

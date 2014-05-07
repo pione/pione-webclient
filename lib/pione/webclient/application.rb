@@ -82,10 +82,28 @@ module Pione
       # Interactive Operation
       #
 
-      get '/interactive/:session_id/(.*+)' do |path|
-        if (req = Global.job_queue.find_request(params[:session_id]))
-          send_file(req.working_directory + path)
+      get %r{/interactive/(\w+)/(.+)} do |session_id, path|
+        if (req = Global.job_queue.find_request(session_id))
+          file = Location[Temppath.mkdir] + path
+          pione_interactive = DRb::DRbObject.new_with_uri(req.interactive_front)
+          if data = pione_interactive.file(path)
+            file.write(data)
+            send_file(file.path.to_s)
+          else
+            return 404, "file not found"
+          end
         end
+      end
+
+      post '/interactive/:session_id/' do
+        send_file(req.working_directory + "index.html")
+      end
+
+      post '/interactive/:session_id/finish' do
+        # finish interactive operation
+        Global.interactive_operation_manager.finish(params[:session_id], params[:result])
+
+        "Interactive operation has finished."
       end
 
       #

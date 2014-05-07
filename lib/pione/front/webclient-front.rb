@@ -7,12 +7,12 @@ module Pione
         super(cmd, Global.webclient_front_port_range)
       end
 
-      def request_interactive_operation(session_id, content, script)
-        if Global.interactive_operation_manager
-          return Global.interactive_operation_manager.request(session_id, content, script)
-        else
+      def request_interactive_operation(session_id, type, data)
+        unless Global.interactive_operation_manager
           raise Webclient::InteractiveOperationFailure.new("Interactive operation manager not found.")
         end
+
+        return Global.interactive_operation_manager.request(session_id, type, data)
       end
     end
   end
