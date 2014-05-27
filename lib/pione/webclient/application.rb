@@ -28,36 +28,42 @@ module Pione
         erb :index
       end
 
+      get '/job/:job_id' do
+        template = Location[settings.views] + "job.erb"
+        last_modified template.mtime
+        erb :job
+      end
+
       #
       # event handlers
       #
 
       # Request a job.
       Global.io.on("request") do |data, client|
-        Global.job_queue.request(client.session, data["uploadMethod"], data["ppg"], data["files"])
+        Global.job_queue.request(data["job_id"], data["uploadMethod"], data["ppg"], data["files"])
       end
 
       # Cancel the job.
-      Global.io.on("cancel") do |_, client|
-        Global.job_queue.cancel(client.session)
+      Global.io.on("cancel") do |data, client|
+        Global.job_queue.cancel(data["job_id"])
       end
 
       # finish interactive operation
       Global.io.on("finish-interactive-operation") do |data, client|
-        Global.interactive_operation_manager.finish(client.session, data)
+        Global.interactive_operation_manager.finish(data["job_id"], data)
       end
 
       #
       # upload
       #
-      post '/upload/ppg/:session_id' do
-        if (req = Global.job_queue.find_request(params[:session_id]))
+      post '/upload/ppg/:job_id' do
+        if (req = Global.job_queue.find_request(params[:job_id]))
           req.upload_ppg(params[:file][:filename], params[:file][:tempfile].path)
         end
       end
 
-      post '/upload/file/:session_id' do
-        if (req = Global.job_queue.find_request(params[:session_id]))
+      post '/upload/file/:job_id' do
+        if (req = Global.job_queue.find_request(params[:job_id]))
           req.upload_file(params[:file][:filename], params[:file][:tempfile].path)
         end
       end
@@ -95,13 +101,13 @@ module Pione
         end
       end
 
-      post '/interactive/:session_id/' do
+      post '/interactive/:job_id/' do
         send_file(req.working_directory + "index.html")
       end
 
-      post '/interactive/:session_id/finish' do
+      post '/interactive/:job_id/finish' do
         # finish interactive operation
-        Global.interactive_operation_manager.finish(params[:session_id], params[:result])
+        Global.interactive_operation_manager.finish(params[:job_id], params[:result])
 
         "Interactive operation has finished."
       end

@@ -19,61 +19,61 @@ module Pione
         run_processing
       end
 
-      # Find a request object by session ID.
+      # Find a request object by the job ID.
       #
-      # @param [String] session_id
-      #   session ID
+      # @param [String] job_id
+      #   job ID
       # @return [Request]
       #   a request object
-      def find_request(session_id)
-        @request[session_id]
+      def find_request(job_id)
+        @request[job_id]
       end
 
       # Add the request into the queue. It constraints max job size, so raise a
       # busy error if the request is not accepted.
       #
-      # @param session_id [String]
-      #    session ID
+      # @param job_id [String]
+      #    job ID
       # @param ppg [String]
       #    URL of PPG file
       # @param files [Array<String>]
       #    list of URL of input files
       # @return [void]
-      def request(session_id, upload_method, ppg, files)
+      def request(job_id, upload_method, ppg, files)
         if @fetch_queue.size > Global.job_queue_max
-          # server is busy now
-          Global.io.push("status", {name: "BUSY"}, to: session_id)
+          # server is busy
+          update_status(job_id, name: "BUSY")
         else
           # cancel if there exists the session's old request already
-          cancel(session_id) if @request[session_id]
+          cancel(job_id) if @request[job_id]
 
           # register the request
-          req = Request.new(session_id, upload_method, ppg, files)
-          @request[session_id] = req
+          req = Request.new(job_id, upload_method, ppg, files)
+          @request[job_id] = req
           @fetch_queue.push(req)
 
           # send an "ACCEPTED" message
-          Global.io.push("status", {name: "ACCEPTED"}, to: session_id) if req.active
+          update_status(job_id, name: "ACCEPTED") if req.active
         end
       end
 
       # Cancel the request.
       #
-      # @param session_id [String]
-      #   session ID
-      def cancel(session_id)
-        if @request[session_id]
+      # @param [String] job_id
+      #   job ID
+      def cancel(job_id)
+        if @request[job_id]
           # deactivate the request
-          @request[session_id].active = false
+          @request[job_id].active = false
           @request.delete(session_id)
 
           # kill processing PID
-          if @processing_request and @processing_pid and @processing_request.session_id == session_id
+          if @processing_request and @processing_pid and @processing_request.job_id == job_id
             Process.kill(:TERM, @processing_pid)
           end
 
           # push status message
-          Global.io.push(:status, {name: "CANCELED"}, :to => session_id)
+          update_status(job_id, name: "CANCELED")
         end
       end
 
@@ -88,6 +88,19 @@ module Pione
       end
 
       private
+
+      # Update status. This notify server status to clients that joins the job.
+      #
+      # @param [String] job_id
+      #   job ID
+      # @param [Hash] data
+      #   status data
+      # @return [void]
+      def update_status(job_id, data)
+        Global.jobs.sessions(job_id) do |session_id|
+          Global.io.push("status", data, to: session_id)
+        end
+      end
 
       # Run a loop for fetching source files.
       #
@@ -104,10 +117,10 @@ module Pione
                 @process_queue.push(req)
               rescue Object => e
                 # send status
-                Global.io.push(:status, {name: "FETCH_ERROR"}, to: req.session_id) if req.active
+                update_status(req.job_id, name: "FETCH_ERROR") if req.active
 
                 # clear the request
-                @request.delete(req.session_id)
+                @request.delete(req.job_id)
               end
             end
           end
@@ -131,7 +144,7 @@ module Pione
             end
 
             # remove the request from request table
-            @request.delete(req.session_id)
+            @request.delete(req.job_id)
           end
         end
       end
@@ -139,15 +152,15 @@ module Pione
       # Fetch source files in the request.
       def fetch(req)
         # push status message
-        Global.io.push(:status, {name: "START_FETCHING"}, :to => req.session_id) if req.active
+        update_status(job_id, name: "START_FETCHING") if req.active
 
         # fetch source files
         req.fetch do |i, size|
-          Global.io.push(:status, {name: "FETCH", number: i, total: size}, :to => req.session_id) if req.active
+          update_status(req.job_id, name: "FETCH", number: i, total: size) if req.active
         end
 
         # push status message
-        Global.io.push(:status, {name: "END_FETCHING"}, :to => req.session_id) if req.active
+        update_status(req.job_id, name: "END_FETCHING") if req.active
       end
 
       # Process the request.
@@ -159,10 +172,10 @@ module Pione
         @processing_request = req
 
         # setup message log receiver
-        @message_log_receiver.session_id = req.session_id
+        @message_log_receiver.job_id = req.job_id
 
         # push status message
-        Global.io.push(:status, {name: "START_PROCESSING"}, :to => req.session_id) if req.active
+        update_status(req.job_id, name: "START_PROCESSING") if req.active
 
         # spawn `pione-client`
         spawner = spawn_pione_client(req)
@@ -174,7 +187,7 @@ module Pione
 
           # check the process result
           if status.kind_of?(Process::Status) and not(status.success?)
-            Global.io.push(:status, {name: "PROCESS_ERROR"}, :to => req.session_id) if req.active
+            update_status(req.job_id, name: "PROCESS_ERROR") if req.active
             return false
           end
         end
@@ -183,16 +196,16 @@ module Pione
         return false unless req.active
 
         # push status message
-        Global.io.push(:status, {name: "END_PROCESSING"}, :to => req.session_id)
+        update_status(req.job_id, name: "END_PROCESSING")
 
         return true
       rescue Object => e
         msg = "An error has raised when pione-webclient was processing a job for %s : %s"
-        msg = msg % [req.session_id, e.message]
+        msg = msg % [req.job_id, e.message]
         Log::SystemLog.error(msg)
-        Global.io.push(:status, {name: "PROCESS_ERROR"}, :to => req.session_id)
+        update_status(job_id, name: "PROCESS_ERROR")
       ensure
-        @message_log_receiver.session_id = nil
+        @message_log_receiver.job_id = nil
         @processing_request = nil
         @processing_pid = nil
       end
@@ -220,7 +233,7 @@ module Pione
 
         # session
         spawner.option("--request-from", @model[:front].uri)
-        spawner.option("--session-id", req.session_id)
+        spawner.option("--job-id", req.job_id)
 
         spawner.option("--client-ui", "Browser")
 
@@ -265,13 +278,13 @@ module Pione
         Global.io.push(:result, {uuid: uuid, filename: filename}, :to => req.session_id)
 
         # push status message
-        Global.io.push(:status, {name: "COMPLETED"}, :to => req.session_id)
+        update_status(req.job_id, name: "COMPLETED")
       end
     end
 
     # `Request` is a class that represents processing requests.
     class Request < StructX
-      member :session_id
+      member :job_id
       member :upload_method
       member :ppg
       member :files
