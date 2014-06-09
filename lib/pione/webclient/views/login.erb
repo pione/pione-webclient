@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>PIONE Webclient - Login</title>
+
+    <!-- ------------------------------------------------------------ -->
+    <!-- CSS                                                          -->
+    <!-- ------------------------------------------------------------ -->
+    <!-- bootstrap -->
+    <link rel="stylesheet" href="<%= Pione::Global.resource[:bootstrap_css] %>"/>
+    <link rel="stylesheet" href="<%= Pione::Global.resource[:bootstrap_theme_css] %>"/>
+    <!-- fonts -->
+    <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto+Condensed:700italic|Roboto:100|Inconsolata:700,400"/>
+    <!-- PIONE -->
+    <link rel="stylesheet" href="css/pione-webclient.css"/>
+  </head>
+
+  <body>
+    <!-- Header -->
+    <section id="header">
+      <h1>PIONE Webclient</h1>
+      <div>PIONE is a rule based workflow engine. Hello, PIONE users!</div>
+    </section>
+
+    <!-- Source Panel -->
+    <section id="login">
+      <h2>Login</h2>
+      <div id="source-panel" class="panel panel-default">
+	<div class="panel-body">
+	   <form action="/login" method="post">
+	     <label>E-mail: <input type="text" name="email"/></label>
+	     <label>Password: <input type="password" name="password"/></label>
+	     <label><input type="radio" value="login" checked="checked"/>login</label>
+	     <label><input type="radio" value="signup"/>signup</label>
+	     <input type="submit"/>
+	   </form>
+	</div>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------------------ -->
+    <!-- JS                                                           -->
+    <!-- ------------------------------------------------------------ -->
+    <script src="lib/js/underscore.js"></script>
+    <script src="<%= Pione::Global.resource[:jquery_js] %>"></script>
+    <script src="<%= Pione::Global.resource[:bootstrap_js] %>"></script>
+    <script src="rocketio/rocketio.js"></script>
+    <script src="js/pione-webclient.js"></script>
+  </body>
+</html>
+
