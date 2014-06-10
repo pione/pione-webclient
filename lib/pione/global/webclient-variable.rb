@@ -55,5 +55,13 @@ module Pione
       item.desc = "Version of jQuery"
       item.init = "1.10.2"
     end
+
+    define_internal_item(:workspace_root) do |item|
+      item.desc = "Workspace root directory"
+      item.init = Location[Pathname.pwd] + "workspace"
+      item.post do
+        Global.workspace_root.mkdir
+      end
+    end
   end
 end

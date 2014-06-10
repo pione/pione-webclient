@@ -14,6 +14,8 @@ require 'pione/webclient/webclient-exception'
 require 'pione/webclient/job-queue'
 require 'pione/webclient/application'
 require 'pione/webclient/interactive-operation-manager'
+require 'pione/webclient/user'
+require 'pione/webclient/job'
 
 #
 # presence_notification_address

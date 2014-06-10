@@ -16,3 +16,4 @@ gems
 public/lib
 *.log
 dropins-app-key.txt
+workspace

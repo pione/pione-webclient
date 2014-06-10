@@ -2,6 +2,8 @@ module Pione
   module Webclient
     # `WebClient::Application` is a sinatra application.
     class Application < Sinatra::Base
+      enable :sessions
+
       set :server, 'thin'
       set :port, Global.webclient_port
       set :public_folder, Global.webclient_root + 'public'
@@ -18,20 +20,122 @@ module Pione
         register Sinatra::Reloader
       end
 
+      before do
+        unless request.path_info == "/login"
+          unless session[:email]
+            session[:referer] = request.fullpath;
+            redirect '/login'
+          end
+        end
+      end
+
+      #
+      # login
+      #
+
+      get '/login' do
+        unless session[:email]
+          template = Location[settings.views] + "login.erb"
+          last_modified template.mtime
+          erb :login
+        else
+          redirect '/'
+        end
+      end
+
+      post '/login' do
+        user = User.new(params[:email], Global.workspace_root)
+
+        case params[:submit_type]
+        when "login"
+          if user.auth(params[:password])
+            session[:email] = params[:email]
+
+            if referer = session[:referer]
+              session[:referer] = nil
+              redirect session[:referer]
+            else
+              redirect '/'
+            end
+          else
+            session[:message] = "Login failed because of no such user or bad password."
+          end
+        when "signup"
+          unless user.exist?
+            # save user informations
+            user.set_password(params[:password])
+            user.save
+
+            # store the user informations to session
+            session[:email] = params[:email]
+            session[:referer] = nil
+
+            # go to previous page
+            if referer = session[:referer]
+              session[:referer] = nil
+              redirect session[:referer]
+            else
+              redirect '/'
+            end
+          else
+            session[:message] = "The account exists already."
+          end
+        end
+
+        redirect '/login'
+      end
+
+      get '/logout' do
+        session[:email] = nil
+        redirect '/login'
+      end
+
       #
       # main page
       #
 
+      # Show workspace page.
       get '/' do
-        template = Location[settings.views] + "index.erb"
-        last_modified template.mtime
-        erb :index
+        user = User.new(session[:email], Global.workspace_root)
+        jobs = user.find_jobs
+
+        erb :workspace, :locals => {:jobs => jobs}
       end
 
+      # Create a new job.
+      post '/job/create' do
+        user = User.new(session[:email], Global.workspace_root)
+        job = Job.new(user, nil)
+        job.name = params[:job_name]
+
+        if job.exist?
+          redirect '/job/create'
+        else
+          job.save
+          redirect '/job/' + job.id
+        end
+      end
+
+      # Show job control page.
       get '/job/:job_id' do
+        user = User.new(session[:email], Global.workspace_root)
+        job = Job.new(user, params[:job_id])
+
         template = Location[settings.views] + "job.erb"
         last_modified template.mtime
-        erb :job
+        erb :job, :locals => {:job => job}
+      end
+
+      # Delete the job and go home.
+      get '/job/delete/:job_id' do
+        user = User.new(session[:email], Global.workspace_root)
+        job = Job.new(user, params[:job_id])
+
+        if job.exist?
+          job.delete
+        end
+
+        redirect '/'
       end
 
       #

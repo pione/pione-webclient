@@ -14,6 +14,12 @@
     <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto+Condensed:700italic|Roboto:100|Inconsolata:700,400"/>
     <!-- PIONE -->
     <link rel="stylesheet" href="css/pione-webclient.css"/>
+
+    <style media="screen" type="text/css">
+      .form-login {
+        max-width: 330px;
+      }
+    </style>
   </head>
 
   <body>
@@ -23,17 +29,22 @@
       <div>PIONE is a rule based workflow engine. Hello, PIONE users!</div>
     </section>
 
+    <% if session[:message] %>
+      <%= session[:message] %>
+      <% session[:message] = nil %>
+    <% end %>
+
     <!-- Source Panel -->
     <section id="login">
       <h2>Login</h2>
       <div id="source-panel" class="panel panel-default">
 	<div class="panel-body">
-	   <form action="/login" method="post">
-	     <label>E-mail: <input type="text" name="email"/></label>
-	     <label>Password: <input type="password" name="password"/></label>
-	     <label><input type="radio" value="login" checked="checked"/>login</label>
-	     <label><input type="radio" value="signup"/>signup</label>
-	     <input type="submit"/>
+	   <form class="form-login" action="/login" method="post">
+	     <input class="form-control" type="text" name="email" placeholder="mail address" required autofocus/>
+	     <input class="form-control" type="password" name="password" placeholder="password" required/>
+	     <label><input type="radio" name="submit_type" value="login" checked="checked"/>log in</label>
+	     <label><input type="radio" name="submit_type" value="signup"/>sign up</label>
+	     <input class="btn btn-lg btn-primary btn-block" type="submit" value="submit"/>
 	   </form>
 	</div>
       </div>
