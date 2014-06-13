@@ -1,8 +1,8 @@
 module Pione
   module Webclient
-    class ApplicationUtil
-      def apply_template(name, locals)
-        template = Location[settings.views] + name + ".erb"
+    module ApplicationUtil
+      def apply_template(name, locals={})
+        template = Location[settings.views] + (name.to_s + ".erb")
         last_modified template.mtime
         erb name, :locals => locals
       end
@@ -18,6 +18,12 @@ module Pione
         else
           redirect default_path
         end
+      end
+    end
+
+    module ViewUtil
+      def view_header
+        erb :header
       end
     end
 
@@ -105,7 +111,7 @@ module Pione
       end
 
       #
-      # main page
+      # workspace routes
       #
 
       # Show workspace page. This page should be not cached.
@@ -115,6 +121,10 @@ module Pione
 
         erb :workspace, :locals => {:jobs => jobs}
       end
+
+      #
+      # job routes
+      #
 
       # Create a new job.
       post '/job/create' do
@@ -131,7 +141,7 @@ module Pione
       end
 
       # Show a job management page.
-      get '/job/:job_id' do
+      get '/job/manage/:job_id' do
         user = User.new(session[:email], Global.workspace_root)
         job = Job.new(user, params[:job_id])
 
@@ -150,11 +160,7 @@ module Pione
         redirect '/'
       end
 
-      #
-      # upload
-      #
-
-      post '/upload/ppg/:job_id' do
+      post '/job/upload/ppg/:job_id' do
         filename = params[:file][:filename]
         filepath = params[:file][:tempfile].path
 
@@ -165,7 +171,7 @@ module Pione
         end
       end
 
-      post '/upload/file/:job_id' do
+      post '/job/upload/file/:job_id' do
         filename = params[:file][:filename]
         filepath = params[:file][:tempfile].path
 
@@ -176,15 +182,11 @@ module Pione
         end
       end
 
-      #
-      # target files
-      #
-
-      # Send the processing result zip file of the session.
-      get '/result/:job_id/:filename' do
+      # Send the job result zip file of the session.
+      get '/job/result/:job_id/:filename' do
         user = User.new(session[:email], Global.workspace_root)
         job = Job.new(user, params[:job_id])
-        location = job.result(params[:filename])
+        location = job.results_dir + params[:filename]
 
         if job.exist? and location.exist?
           content_type "application/zip"
@@ -228,7 +230,22 @@ module Pione
       # Admin
       #
 
-      get '/shutdown' do
+      get '/admin' do
+        workspace = Workspace.new(Global.workspace_root)
+
+        apply_template(:admin, users: workspace.find_users)
+      end
+
+      get '/admin/user/delete/:user_name' do
+        user = User.new(:user_name, Global.workspace_root)
+        if user.exist?
+          user.delete
+        end
+
+        redirect '/admin'
+      end
+
+      get '/admin/shutdown' do
         Global.io.push(:status, "SHUTDOWN")
         sleep 5
         puts "!!! PIONE Webclient shutdowned !!!"

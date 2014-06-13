@@ -16,6 +16,7 @@ require 'pione/webclient/application'
 require 'pione/webclient/interactive-operation-manager'
 require 'pione/webclient/user'
 require 'pione/webclient/job'
+require 'pione/webclient/workspace'
 
 #
 # presence_notification_address

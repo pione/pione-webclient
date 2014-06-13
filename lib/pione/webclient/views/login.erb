@@ -4,16 +4,7 @@
     <meta charset="utf-8">
     <title>PIONE Webclient - Login</title>
 
-    <!-- ------------------------------------------------------------ -->
-    <!-- CSS                                                          -->
-    <!-- ------------------------------------------------------------ -->
-    <!-- bootstrap -->
-    <link rel="stylesheet" href="<%= Pione::Global.resource[:bootstrap_css] %>"/>
-    <link rel="stylesheet" href="<%= Pione::Global.resource[:bootstrap_theme_css] %>"/>
-    <!-- fonts -->
-    <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto+Condensed:700italic|Roboto:100|Inconsolata:700,400"/>
-    <!-- PIONE -->
-    <link rel="stylesheet" href="css/pione-webclient.css"/>
+<%= erb :css %>
 
     <style media="screen" type="text/css">
       .form-login {
@@ -23,12 +14,7 @@
   </head>
 
   <body>
-    <!-- Header -->
-    <section id="header">
-      <h1>PIONE Webclient</h1>
-      <div>PIONE is a rule based workflow engine. Hello, PIONE users!</div>
-    </section>
-
+<%= erb :header %>
     <% if session[:message] %>
       <%= session[:message] %>
       <% session[:message] = nil %>
@@ -50,6 +36,8 @@
       </div>
     </section>
 
+<%= erb :footer %>
+
     <!-- ------------------------------------------------------------ -->
     <!-- JS                                                           -->
     <!-- ------------------------------------------------------------ -->
@@ -60,4 +48,3 @@
     <script src="js/pione-webclient.js"></script>
   </body>
 </html>
-

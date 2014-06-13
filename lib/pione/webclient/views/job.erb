@@ -4,46 +4,12 @@
     <meta charset="utf-8">
     <title>PIONE Webclient</title>
 
-    <!-- ------------------------------------------------------------ -->
-    <!-- CSS                                                          -->
-    <!-- ------------------------------------------------------------ -->
-    <!-- bootstrap -->
-    <link rel="stylesheet" href="/<%= Pione::Global.resource[:bootstrap_css] %>"/>
-    <link rel="stylesheet" href="/<%= Pione::Global.resource[:bootstrap_theme_css] %>"/>
-    <!-- fonts -->
-    <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto+Condensed:700italic|Roboto:100|Inconsolata:700,400"/>
-    <!-- PIONE -->
-    <link rel="stylesheet" href="/css/pione-webclient.css"/>
+<%= erb :css %>
   </head>
 
   <body>
-    <!-- Header -->
-    <section id="header">
-      <h1>PIONE Webclient</h1>
-      <div>PIONE is a rule based workflow engine. Hello, PIONE users!</div>
-    </section>
-
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-default" role="navigation">
-      <div class="navbar-header">
-	<a class="navbar-brand" href="#">PIONE</a>
-      </div>
-      <div class="collapse navbar-collapse">
-	<ul class="nav navbar-nav">
-	  <li><a href="/">Workspace</a></li>
-	  <li class="active"><a href="#">Job</a></li>
-	</ul>
-	<form class="navbar-form navbar-left">
-	  <div class="form-group">
-	    <input type="text" class="form-control" placeholder="Job Name">
-	  </div>
-	  <button type="submit" class="btn btn-default">Create a new job</button>
-	</form>
-	<ul class="nav navbar-nav navbar-right">
-	  <li><a href="/logout">Logout</a></li>
-	</ul>
-      </div>
-    </nav>
+<%= erb :header %>
+<%= erb :navigation_bar %>
 
     <!-- Source Panel -->
     <section id="source">
@@ -155,22 +121,7 @@
     <!-- Alert Message Box -->
     <div id="alert-box"></div>
 
-    <!-- Footer -->
-    <section id="footer">
-      <h2>Footer</h2>
-      <div class="box">
-	<span style="padding-right: 1em">PIONE Projects:</span>
-	<div class="btn-group">
-	  <a href="https://github.com/pione/pione" class="btn btn-xs btn-default">
-	    <img src="https://raw.github.com/github/media/master/octocats/blacktocat-16.png"/> PIONE
-	  </a>
-	  <a href="https://github.com/pione/pione-webclient" class="btn btn-xs btn-default">
-	    <img src="https://raw.github.com/github/media/master/octocats/blacktocat-16.png"/> PIONE Webclient
-	  </a>
-	</div>
-      </div>
-      <div class="info">This client is working with PIONE <%= Pione::VERSION %>.</div>
-    </section>
+<%= erb :footer %>
 
     <!-- ------------------------------------------------------------ -->
     <!-- JS                                                           -->

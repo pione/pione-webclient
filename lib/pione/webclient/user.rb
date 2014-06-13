@@ -1,7 +1,9 @@
 module Pione
   module Webclient
     class User
-      USERINFO_FILENAME = "userinfo.yml"
+      USERINFO_FILENAME = "user-info.yml"
+
+      attr_reader :name
 
       # @param [String] name
       #   user name
