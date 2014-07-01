@@ -13,6 +13,7 @@ module Pione
         @name = name
         @workspace_root = workspace_root
         @password = nil
+        @admin = false
 
         load_from_userinfo if exist?
       end
@@ -22,6 +23,10 @@ module Pione
       #   true if the user exists
       def exist?
         userinfo.exist?
+      end
+
+      def admin?
+        @admin
       end
 
       # Return true if the password is valid.
@@ -45,12 +50,17 @@ module Pione
         @password = password_digest(password)
       end
 
+      def set_admin(flag)
+        @admin = flag
+      end
+
       # Save the user's information.
       # @return [void]
       def save
         data = Hash.new
         data[:name] = @name
         data[:password] = @password
+        data[:admin] = @admin
         userinfo.write(YAML.dump(data))
       end
 
@@ -87,6 +97,7 @@ module Pione
       def load_from_userinfo
         data = YAML.load(userinfo.read)
         @password = data[:password]
+        @admin = data[:admin]
       end
 
       def password_digest(password)

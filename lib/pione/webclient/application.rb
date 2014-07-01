@@ -1,6 +1,14 @@
 module Pione
   module Webclient
     module ApplicationUtil
+      def logined?
+        not(session[:email].nil?)
+      end
+
+      def user
+        User.new(session[:email], Global.workspace_root)
+      end
+
       def apply_template(name, locals={})
         template = Location[settings.views] + (name.to_s + ".erb")
         last_modified template.mtime
@@ -51,8 +59,8 @@ module Pione
 
       # Go login page if the user is not logined.
       before do
-        unless request.path_info == "/login"
-          unless session[:email]
+        unless request.path_info == "/login" or request.path_info == "/signup"
+          unless logined?
             save_referer
             redirect '/login'
           end
@@ -65,31 +73,42 @@ module Pione
 
       # Show login page.
       get '/login' do
-        unless session[:email]
-          apply_template :login
-        else
-          redirect '/'
-        end
+        not(logined?) ? apply_template(:login) : redirect('/')
       end
 
       # Process authentications.
       post '/login' do
-        user = User.new(params[:email], Global.workspace_root)
+        new_user = User.new(params[:email], Global.workspace_root)
 
-        case params[:submit_type]
-        when "login"
-          if user.auth(params[:password])
-            session[:email] = params[:email]
+        if new_user.auth(params[:password])
+          session[:email] = params[:email]
 
-            go_back('/')
-          else
-            session[:message] = "Login failed because of no such user or bad password."
-          end
-        when "signup"
-          unless user.exist?
+          go_back('/')
+        else
+          session[:message] = "Login failed because of no such user or bad password."
+        end
+
+        redirect '/login'
+      end
+
+      # Show signup page.
+      get '/signup' do
+        not(logined?) ? apply_template(:signup) : redirect('/')
+      end
+
+      # Process sign up.
+      post '/signup' do
+        new_user = User.new(params[:email], Global.workspace_root)
+        workspace = Workspace.new(Global.workspace_root)
+
+        if params[:password] == params[:confirmation]
+          session[:message] = "The password and confirmation are mismatched."
+        else
+          unless new_user.exist?
             # save user informations
-            user.set_password(params[:password])
-            user.save
+            new_user.set_password(params[:password])
+            new_user.set_admin(workspace.find_users.size == 0)
+            new_user.save
 
             # store the user informations to session
             session[:email] = params[:email]
@@ -101,7 +120,7 @@ module Pione
           end
         end
 
-        redirect '/login'
+        redirect '/signup'
       end
 
       # Logout the user.
@@ -116,7 +135,6 @@ module Pione
 
       # Show workspace page. This page should be not cached.
       get '/' do
-        user = User.new(session[:email], Global.workspace_root)
         jobs = user.find_jobs
 
         erb :workspace, :locals => {:jobs => jobs}
@@ -132,17 +150,15 @@ module Pione
         job = Job.new(user, nil)
         job.name = params[:job_name]
 
-        if job.exist?
-          redirect '/job/create'
-        else
+        unless job.exist?
           job.save
-          redirect '/job/' + job.id
         end
+
+        redirect '/job/manage' + job.id
       end
 
       # Show a job management page.
       get '/job/manage/:job_id' do
-        user = User.new(session[:email], Global.workspace_root)
         job = Job.new(user, params[:job_id])
 
         apply_template(:job, {:job => job})
@@ -150,7 +166,6 @@ module Pione
 
       # Delete the job and go home.
       get '/job/delete/:job_id' do
-        user = User.new(session[:email], Global.workspace_root)
         job = Job.new(user, params[:job_id])
 
         # delete the job if it exists
@@ -237,7 +252,6 @@ module Pione
       end
 
       get '/admin/user/delete/:user_name' do
-        user = User.new(:user_name, Global.workspace_root)
         if user.exist?
           user.delete
         end
