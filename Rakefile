@@ -92,20 +92,6 @@ task "setup:lib" do
 end
 
 libs = LibInstaller.define(self) do |installer|
-  # ember
-  installer.add do |lib|
-    lib.type = :js
-    lib.url  = "http://builds.emberjs.com/tags/v1.2.0/ember.js"
-    lib.name = "ember.js"
-  end
-
-  # handlebars
-  installer.add do |lib|
-    lib.type = :js
-    lib.url  = "http://builds.handlebarsjs.com.s3.amazonaws.com/handlebars-v1.1.2.js"
-    lib.name = "handlebars.js"
-  end
-
   # jquery
   installer.add do |lib|
     lib.type = :js
@@ -167,6 +153,13 @@ libs = LibInstaller.define(self) do |installer|
     lib.type = :font
     lib.url  = "https://github.com/twbs/bootstrap/raw/v3.0.2/dist/fonts/glyphicons-halflings-regular.woff"
     lib.name = "glyphicons-halflings-regular.woff"
+  end
+
+  # rocketio
+  installer.add do |lib|
+    lib.type = :js
+    lib.url = "https://raw.github.com/shokai/sinatra-rocketio/master/rocketio.js"
+    lib.name = "rocketio.js"
   end
 end
 

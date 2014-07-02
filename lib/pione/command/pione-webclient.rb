@@ -41,7 +41,9 @@ module Pione
       phase(:setup) do |seq|
         seq << :environment
         seq << :resource
+        seq << :websocket_manager
         seq << :job_queue
+        seq << :download_queue
         seq << :interactive_operation_manager
         seq << :dropins_app_key
         seq << :message_log_receiver
@@ -70,9 +72,26 @@ module Pione
         end
       end
 
+      setup(:websocket_manager) do |item|
+        item.desc = "Setup Websocket manageer."
+        item.process do
+          Global.websocket_manager = Webclient::WebsocketManager.new
+        end
+      end
+
       setup(:job_queue) do |item|
         item.desc = "Start a job queue"
-        item.process {Global.job_queue = Webclient::JobQueue.new(model)}
+        item.process do
+          Global.job_queue = Webclient::JobQueue.new(model, Global.websocket_manager)
+        end
+      end
+
+      setup(:download_queue) do |item|
+        item.desc = "Start a download queue"
+        item.process do
+          workspace = Webclient::Workspace.new(Global.workspace_root)
+          Global.download_queue = Webclient::DownloadQueue.new(workspace, Global.websocket_manager)
+        end
       end
 
       setup(:interactive_operation_manager) do |item|
@@ -103,7 +122,7 @@ module Pione
       setup(:message_log_receiver) do |item|
         item.desc = "Setup a message log receiver"
         item.process do
-          receiver = Log::WebclientMessageLogReceiver.new
+          receiver = Log::WebclientMessageLogReceiver.new(Global.websocket_manager)
           model[:front][:message_log_receiver] = receiver
           Global.job_queue.message_log_receiver = receiver
         end

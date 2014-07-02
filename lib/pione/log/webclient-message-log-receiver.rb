@@ -5,17 +5,13 @@ module Pione
     class WebclientMessageLogReceiver < MessageLogReceiver
       include DRbUndumped
 
-      attr_accessor :session_id
-
-      def initialize
-        @session_id = nil
+      def initialize(websocket_manager)
+        @websocket_manager = websocket_manager
       end
 
-      def receive(message, level, header, color)
-        if @session_id
-          data = {content: message, level: level, header: header, color: color}
-          Global.io.push("message-log", data, to: @session_id);
-        end
+      def receive(message, level, header, color, job_id)
+        data = {content: message, level: level, header: header, color: color}
+        Global.io.push("message-log", data, to: @websocket_manager.find(job_id));
       end
     end
   end

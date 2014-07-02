@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>PIONE Webclient</title>
+    <title><%= job.desc || job.id %> - PIONE Webclient</title>
 
 <%= erb :css %>
   </head>
@@ -10,6 +10,12 @@
   <body>
 <%= erb :header %>
 <%= erb :navigation_bar %>
+
+    <% if job.desc %>
+    <section id="job_desc">
+      <%= job.desc %>
+    </section>
+    <% end %>
 
     <!-- Source Panel -->
     <section id="source">
@@ -30,10 +36,10 @@
 	  <!-- show a source PPG file -->
 	  <div>
 	    <span class="glyphicon glyphicon-file"></span>
-	    <span id="source-ppg" class="source-names">No package</span>
+	    <span id="ppg" class="source-names">No package</span>
 	  </div>
 
-	  <h3>Source Files</h3>
+	  <h3>Input Files</h3>
 	  <!-- buttons for selecting source data files -->
 	  <div>
 	    <input type="dropbox-chooser" name="selected-file" id="source-files-chooser" style="visibility: hidden;"
@@ -47,7 +53,7 @@
 	  <!-- show source data files -->
 	  <div>
 	    <span class="glyphicon glyphicon-file"></span>
-	    <span id="source-files" class="source-names">No package</span>
+	    <span id="sources" class="source-names">No sources</span>
 	  </div>
 	</div>
       </div>
@@ -63,8 +69,8 @@
 	<a class="btn btn-lg btn-default disabled" id="cancel">
 	  <span class="glyphicon glyphicon-stop"></span> Stop
 	</a>
-	<a class="btn btn-lg btn-default" id="delete" href="/job/delete/<%= job.id %>">
-	  <span class="glyphicon glyphicon-trash"></span> Delete
+	<a class="btn btn-lg btn-default" id="clear" href="/job/clear/<%= job.id %>">
+	  <span class="glyphicon glyphicon-trash"></span> Clear
 	</a>
       </div>
     </section>
@@ -126,12 +132,11 @@
     <!-- ------------------------------------------------------------ -->
     <!-- JS                                                           -->
     <!-- ------------------------------------------------------------ -->
-    <script src="/lib/js/underscore.js"></script>
-    <script src="/<%= Pione::Global.resource[:jquery_js] %>"></script>
-    <script src="/<%= Pione::Global.resource[:bootstrap_js] %>"></script>
-    <script src="/rocketio/rocketio.js"></script>
-    <script src="/js/pione-webclient.js"></script>
-    <script type="text/javascript" src="https://www.dropbox.com/static/api/1/dropins.js" id="dropboxjs" data-app-key="<%= Pione::Global.dropins_app_key %>"></script>
+<%= erb :jslibs %>
+    <script type="text/javascript">
+      PioneWebclient.mode = "manage_job";
+      PioneWebclient.setJobId("<%= job.id %>");
+    </script>
   </body>
 </html>
 

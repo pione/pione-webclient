@@ -5,61 +5,119 @@
 // Define an application.
 window.PioneWebclient = {};
 
+// Set the job id.
+PioneWebclient.setJobId = function(id) {
+    PioneWebclient.jobId = id;
+}
+
 /* ------------------------------------------------------------ *
    Webclient Model and Operations
  * ------------------------------------------------------------ */
 
 // Initialize the client model.
 PioneWebclient.initModel = function () {
-    // initialize the source model
-    PioneWebclient.source = {
-	uploadMethod: undefined,
-	ppg: undefined,
-	files: []
-    };
-
     // initialize the result
     PioneWebclient.result = {url: undefined};
 
-    // clear chooser names
-    $("#source-ppg").text("No package");
-    $("#source-files").text("No files");
+    // update sources
+    PioneWebclient.updateSources();
 
     // disable request button
-    PioneWebclient.enableRequest(false);
+    PioneWebclient.enableRequest(true);
 };
+
+// Update source files viewer.
+PioneWebclient.updateSources = function() {
+    $.getJSON(
+	"/job/sources/" + PioneWebclient.jobId,
+	function (info) {
+	    // update ppg
+	    if (info.ppg != undefined) {
+		$("#ppg").text(info.ppg);
+	    } else {
+		$("#ppg").text("No package");
+	    }
+
+	    // update sources
+	    $("#sources").empty();
+	    if (info.sources.length > 0) {
+		_.each(info.sources, function(source) {$("#sources").append(source);});
+	    } else {
+		$("#sources").append("No sources");
+	    }
+	}
+    );
+};
+
+// Upload by file.
+PioneWebclient.uploadByFile = function (input_type, file) {
+    // set the file as form data
+    var fd = new FormData();
+    fd.append("file", file);
+
+    // post the file
+    $.ajax({
+	url: "/job/upload-by-file/" + input_type + "/" + PioneWebclient.jobId,
+	type: "POST",
+	data: fd,
+	processData: false,
+	contentType: false,
+	success: PioneWebclient.updateSources
+    });
+}
+
+// Upload a file as a URL.
+PioneWebclient.uploadByUrl = function (input_type, filename, url) {
+    $.ajax({
+	url: "/job/upload-by-link/" + PioneWebclient.jobId,
+	type: "POST",
+	data: {input_type: input_type, filename: filename, url: url},
+	success: PioneWebclient.updateSources
+    });
+}
+
+PioneWebclient.handleFileSelect = function (input_type) {
+    return function(event) {
+	var files = event.target.files;
+
+	switch (input_type) {
+	case "ppg":
+	    PioneWebclient.uploadByFile(input_type, files[0]);
+	    break;
+	case "sources":
+	    _.each(files, function(file) {PioneWebclient.uploadByFile(input_type, file)});
+	    break;
+	}
+    };
+}
+
+PioneWebclient.setupDirectUploader = function () {
+    $("#source-ppg-direct-uploader").change(PioneWebclient.handleFileSelect("ppg"));
+    $("#source-files-direct-uploader").change(PioneWebclient.handleFileSelect("sources"));
+}
+
+PioneWebclient.resetDirectUploader = function () {
+    var clearFileInput = function (elt) {
+	elt.wrap("<form>").closest("form").get(0).reset();
+	elt.unwrap();
+    };
+
+    clearFileInput($("#source-ppg-direct-uploader"));
+    clearFileInput($("#source-files-direct-uploader"));
+}
 
 // Setup Dropbox chooser actions.
 PioneWebclient.setupChooser = function () {
     // PPG chooser
     $("#source-ppg-chooser").on("DbxChooserSuccess", function (res) {
 	var ppg = res.originalEvent.files[0];
-
-	PioneWebclient.source.uploadMethod = "dropbox";
-
-	// register as a source PPG
-	PioneWebclient.source.ppg = ppg.link;
-	// show the PPG name
-	$("#source-ppg").text(ppg.name);
-
-	// enable request button
-	PioneWebclient.enableRequest(true);
+	PioneWebclient.uploadByUrl("ppg", ppg.name, ppg.link);
     });
 
     // Source files chooser
     $("#source-files-chooser").on("DbxChooserSuccess", function (res) {
 	var files = res.originalEvent.files;
-	var names = _.map(_.first(files, 3), function(file) {return file.name}).join(", ");
-	if (files.length > 3) {
-	    names = names + ", ..."
-	}
-
-	PioneWebclient.source.uploadMethod = "dropbox";
-
-	// register as source files
-	PioneWebclient.source.files = _.map(files, function(file) {return file.link});
-	// show source file names
-	$("#source-files").text(names);
+	_.each(files, function(file) {PioneWebclient.uploadByUrl("ppg", file.name, file.link);});
     });
 };
 
@@ -142,12 +200,18 @@ PioneWebclient.clear = function () {
 
 // Make a websocket connection.
 PioneWebclient.io = new RocketIO();
+PioneWebclient.io.connect("");
 
 // Handle "connect" messages.
 PioneWebclient.io.on("connect", function(data) {
     PioneWebclient.connection = true;
     PioneWebclient.setGoodJobStatus("Wait Request")
     PioneWebclient.setGoodServerStatus("Connected");
+
+    // join job id
+    if (PioneWebclient.mode == "manage_job") {
+	PioneWebclient.io.push("join-job", {job_id: PioneWebclient.jobId});
+    }
 });
 
 // Handle "disconnect" messages.
@@ -159,6 +223,8 @@ PioneWebclient.io.on("disconnect", function(data) {
 
 // Handle "error" messages.
 PioneWebclient.io.on("error", function(data) {
+    if (data.job_id != PioneWebclient.jobId) return;
+
     PioneWebclient.connection = false;
     PioneWebclient.setBadJobStatus("Disabled")
     PioneWebclient.setBadServerStatus("Disconnected");
@@ -166,6 +232,8 @@ PioneWebclient.io.on("error", function(data) {
 
 // Handle "status" messages.
 PioneWebclient.io.on("status", function(data) {
+    if (data.job_id != PioneWebclient.jobId) return;
+
     switch(data["name"]) {
     case "ACCEPTED":
 	PioneWebclient.setGoodJobStatus("Queued");
@@ -228,7 +296,9 @@ PioneWebclient.io.on("status", function(data) {
 
 // Handle "result" messages.
 PioneWebclient.io.on("result", function(data) {
-    var path = "result/" + data["uuid"] + "/" + data["filename"];
+    if (data.job_id != PioneWebclient.jobId) return;
+
+    var path = "result/" + PioneWebclient.jobId + "/" + data["filename"];
     $("#target-saver").attr("href", path);
     $("#target-saver").attr("data-filename", data["filename"]);
     $("#target-download").attr("href", path);
@@ -240,6 +310,8 @@ PioneWebclient.io.on("result", function(data) {
 
 // Handle "message-log" messages.
 PioneWebclient.io.on("message-log", function(data) {
+    if (data.job_id != PioneWebclient.jobId) return;
+
     var area = $("#message-log pre");
     // level padding
     _(data["level"]).times(function(n) {area.append("  ")});
@@ -259,6 +331,8 @@ PioneWebclient.io.on("message-log", function(data) {
 
 // Handle "interactive-page" messages.
 PioneWebclient.io.on("interactive-page", function(data) {
+    if (data.job_id != PioneWebclient.jobId) return;
+
     // load contents
     var link = $("<a>");
     link.attr("href", data["url"]);
@@ -272,6 +346,8 @@ PioneWebclient.io.on("interactive-page", function(data) {
 
 // Handle "interactive-dialog" messages.
 PioneWebclient.io.on("interactive-dialog", function(data) {
+    if (data.job_id != PioneWebclient.jobId) return;
+
     // load contents
     PioneWebclient.renderInteractiveOperationCanvas(data["content"]);
 
@@ -283,23 +359,20 @@ PioneWebclient.io.on("interactive-dialog", function(data) {
 });
 
 PioneWebclient.io.on("finish-interactive-operation", function(data) {
+    if (data.job_id != PioneWebclient.jobId) return;
+
     // clear the canvas
     PioneWebclient.clearInteractiveOperationCanvas();
 });
 
 // Handle "upload-ppg" messages.
-PioneWebclient.io.on("upload-ppg", function(data) {
-    PioneWebclient.upload(PioneWebclient.source.ppg, "/upload/ppg/" + PioneWebclient.io.session);
+PioneWebclient.io.on("requestable", function(data) {
+    if (data.job_id != PioneWebclient.jobId) return;
+
+    PiioneWebclient.enableReuqest(true);
+    PiioneWebclient.enableCancel(false);
 });
 
-// Handle "upload-file" messages.
-PioneWebclient.io.on("upload-file", function(data) {
-    var name = data;
-    var file = _.find(PioneWebclient.source.files, function(f) {return f.name == name});
-    if (file) {
-	PioneWebclient.upload(file, "/upload/file/" + PioneWebclient.io.session);
-    }
-});
 
 /* ------------------------------------------------------------ *
    Job Handler
@@ -307,28 +380,21 @@ PioneWebclient.io.on("upload-file", function(data) {
 
 // Send a job processing request.
 PioneWebclient.sendRequest = function () {
-    // setup data
-    var data = {uploadMethod: undefined, ppg: undefined, files: []};
-    switch(PioneWebclient.source.uploadMethod) {
-    case "dropbox":
-	data = PioneWebclient.source;
-	break;
-    case "direct":
-	data.uploadMethod = "direct";
-	data.ppg = PioneWebclient.source.ppg.name;
-	data.files = _.map(PioneWebclient.source.files, function(f) {return f.name});
-    }
-
     // send a request
-    PioneWebclient.io.push("request", data);
-    PioneWebclient.enableRequest(false);
-    $("#message-log pre").empty();
-    PioneWebclient.showTarget(false);
+    $.ajax({
+	url: "/job/request/" + PioneWebclient.jobId,
+	type: "GET",
+	success: function() {
+	    PioneWebclient.enableRequest(false);
+	    $("#message-log pre").empty();
+	    PioneWebclient.showTarget(false);
+	}
+    });
 };
 
 // Send a job cancel message.
 PioneWebclient.sendCancel = function () {
-    PioneWebclient.io.push("cancel");
+    PioneWebclient.io.push("cancel", {job_id: PioneWebclient.jobId});
     PioneWebclient.enableCancel(false);
 };
 
@@ -448,71 +514,6 @@ PioneWebclient.initInteractiveOperation = function () {
     PioneWebclient.setupInteractiveOperationEvent();
 }
 
-/* ------------------------------------------------------------ *
-   Direct Uploader
- * ------------------------------------------------------------ */
-
-PioneWebclient.upload = function (file, url) {
-    var fd = new FormData();
-
-    // set the file as form data
-    fd.append("file", file);
-
-    // post the file
-    $.ajax({
-	url: url,
-	type: "POST",
-	data: fd,
-	processData: false,
-	contentType: false,
-	success: function(){}
-    });
-}
-
-PioneWebclient.handleFileSelect = function (name) {
-    return function(event) {
-	var files = event.target.files;
-
-	// build file names
-	var names = _.map(_.first(files, 3), function(file) {return file.name}).join(", ");
-	if (files.length > 3) {
-	    names = names + ", ..."
-	}
-
-	// register files and show its names
-	switch (name) {
-	case "ppg":
-	    $("#source-ppg").text(names);
-	    PioneWebclient.source.uploadMethod = "direct";
-	    PioneWebclient.source.ppg = files[0];
-
-	    // enable request button
-	    PioneWebclient.enableRequest(true);
-	    break;
-	case "files":
-	    $("#source-files").text(names);
-	    PioneWebclient.source.uploadMethod = "direct";
-	    PioneWebclient.source.files = files;
-	    break;
-	}
-    };
-}
-
-PioneWebclient.setupDirectUploader = function () {
-    $("#source-ppg-direct-uploader").change(PioneWebclient.handleFileSelect("ppg"));
-    $("#source-files-direct-uploader").change(PioneWebclient.handleFileSelect("files"));
-}
-
-PioneWebclient.resetDirectUploader = function () {
-    var clearFileInput = function (elt) {
-	elt.wrap("<form>").closest("form").get(0).reset();
-	elt.unwrap();
-    };
-
-    clearFileInput($("#source-ppg-direct-uploader"));
-    clearFileInput($("#source-files-direct-uploader"));
-}
-
 
 
 /* ------------------------------------------------------------ *
@@ -521,17 +522,21 @@ PioneWebclient.resetDirectUploader = function () {
 
 // Do the action on loading the document.
 $(document).ready(function() {
-    PioneWebclient.initModel();
-    $("#request").on("click", function () {PioneWebclient.sendRequest()});
-    $("#cancel").on("click", function () {PioneWebclient.sendCancel()});
-    $("#clear").on("click", function () {PioneWebclient.clear()});
-    $("#follow-message-log").on("click", function () {PioneWebclient.toggleFollowMessageLog()});
-    PioneWebclient.initInteractiveOperation();
-    PioneWebclient.setupChooser();
-    PioneWebclient.setupDirectUploader();
+    switch (PioneWebclient.mode) {
+    case "manage_job":
+	PioneWebclient.initModel();
+	$("#request").on("click", function () {PioneWebclient.sendRequest()});
+	$("#cancel").on("click", function () {PioneWebclient.sendCancel()});
+	$("#clear").on("click", function () {PioneWebclient.clear()});
+	$("#follow-message-log").on("click", function () {PioneWebclient.toggleFollowMessageLog()});
+	PioneWebclient.initInteractiveOperation();
+	PioneWebclient.setupChooser();
+	PioneWebclient.setupDirectUploader();
 
-    PioneWebclient.setFollowMessageLog(true);
+	PioneWebclient.setFollowMessageLog(true);
 
-    // connect websocket server
-    PioneWebclient.io.connect();
+	// connect websocket server
+	PioneWebclient.io.connect();
+	break;
+    }
 });

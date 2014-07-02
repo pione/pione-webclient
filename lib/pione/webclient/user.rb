@@ -14,6 +14,8 @@ module Pione
         @workspace_root = workspace_root
         @password = nil
         @admin = false
+        @ctime = nil
+        @mtime = nil
 
         load_from_userinfo if exist?
       end
@@ -57,10 +59,15 @@ module Pione
       # Save the user's information.
       # @return [void]
       def save
-        data = Hash.new
-        data[:name] = @name
-        data[:password] = @password
-        data[:admin] = @admin
+        now = Time.now
+
+        data = {
+          :name => @name,
+          :password => @password,
+          :admin => @admin,
+          :ctime => Timestamp.dump(@ctime) || Timestamp.dump(now),
+          :mtime => Timestamp.dump(now),
+        }
         userinfo.write(YAML.dump(data))
       end
 
@@ -98,6 +105,8 @@ module Pione
         data = YAML.load(userinfo.read)
         @password = data[:password]
         @admin = data[:admin]
+        @ctime = Timestamp.parse(data[:ctime])
+        @mtime = Timestamp.parse(data[:mtime])
       end
 
       def password_digest(password)

@@ -30,7 +30,7 @@
 	   <form class="form-signup" action="/signup" method="post">
 	     <input class="form-control" type="text" name="email" placeholder="mail address" required autofocus/>
 	     <input class="form-control" type="password" name="password" placeholder="password" required/>
-	     <input class="form-control" type="confirmation" name="confirmation" placeholder="confirmation" required/>
+	     <input class="form-control" type="password" name="confirmation" placeholder="confirmation" required/>
 	     <input class="btn btn-lg btn-primary btn-block" type="submit" value="submit"/>
 	   </form>
 	</div>
@@ -42,10 +42,6 @@
     <!-- ------------------------------------------------------------ -->
     <!-- JS                                                           -->
     <!-- ------------------------------------------------------------ -->
-    <script src="lib/js/underscore.js"></script>
-    <script src="<%= Pione::Global.resource[:jquery_js] %>"></script>
-    <script src="<%= Pione::Global.resource[:bootstrap_js] %>"></script>
-    <script src="rocketio/rocketio.js"></script>
-    <script src="js/pione-webclient.js"></script>
+<%= erb :jslibs %>
   </body>
 </html>

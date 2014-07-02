@@ -18,7 +18,7 @@
 	<div class="panel-body">
 	  <form class="form-inline" action="/job/create" method="post" role="form">
 	    <div class="form-group">
-	      <input type="text" class="form-control" name="job_name" placeholder="job name"/>
+	      <input type="text" class="form-control" name="job_desc" placeholder="description"/>
 	    </div>
 	    <button class="btn btn-default">Create a new job</button>
 	  </form>
@@ -34,21 +34,23 @@
 	  <table class="table table-hover">
 	    <thead>
 	      <tr>
-		<th>name</th>
 		<th>id</th>
+		<th>desc</th>
 		<th>ctime</th>
 		<th>mtime</th>
 		<th>status</th>
+		<th>operation</th>
 	      </tr>
 	    </thead>
 	    <tbody>
 	      <% jobs.each do |job| %>
 	      <tr>
-		<td><a href="/job/manage/<%= job.id %>"><%= job.name %></a></td>
 		<td><a href="/job/manage/<%= job.id %>"><%= job.id %></a></td>
+		<td><a href="/job/manage/<%= job.id %>"><%= job.desc %></a></td>
 		<td><%= job.ctime ? job.ctime.iso8601 : "" %></td>
 		<td><%= job.mtime ? job.mtime.iso8601 : "" %></td>
 		<td><%= job.status %></td>
+		<td><a href="/job/delete/<%= job.id %>">delete</a>
 	      </tr>
 	      <% end %>
 	    </tbody>
@@ -80,12 +82,7 @@
     <!-- ------------------------------------------------------------ -->
     <!-- JS                                                           -->
     <!-- ------------------------------------------------------------ -->
-    <script src="/lib/js/underscore.js"></script>
-    <script src="/<%= Pione::Global.resource[:jquery_js] %>"></script>
-    <script src="/<%= Pione::Global.resource[:bootstrap_js] %>"></script>
-    <script src="/rocketio/rocketio.js"></script>
-    <script src="/js/pione-webclient.js"></script>
-    <script type="text/javascript" src="https://www.dropbox.com/static/api/1/dropins.js" id="dropboxjs" data-app-key="<%= Pione::Global.dropins_app_key %>"></script>
+<%= erb :jslibs %>
   </body>
 </html>
 

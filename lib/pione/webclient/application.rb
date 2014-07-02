@@ -9,6 +9,10 @@ module Pione
         User.new(session[:email], Global.workspace_root)
       end
 
+      def workspace
+        Workspace.new(Global.workspace_root)
+      end
+
       def apply_template(name, locals={})
         template = Location[settings.views] + (name.to_s + ".erb")
         last_modified template.mtime
@@ -99,9 +103,8 @@ module Pione
       # Process sign up.
       post '/signup' do
         new_user = User.new(params[:email], Global.workspace_root)
-        workspace = Workspace.new(Global.workspace_root)
 
-        if params[:password] == params[:confirmation]
+        if params[:password] != params[:confirmation]
           session[:message] = "The password and confirmation are mismatched."
         else
           unless new_user.exist?
@@ -148,20 +151,32 @@ module Pione
       post '/job/create' do
         user = User.new(session[:email], Global.workspace_root)
         job = Job.new(user, nil)
-        job.name = params[:job_name]
+        job.desc = params[:job_desc]
 
         unless job.exist?
           job.save
         end
 
-        redirect '/job/manage' + job.id
+        redirect '/job/manage/' + job.id
       end
 
       # Show a job management page.
       get '/job/manage/:job_id' do
         job = Job.new(user, params[:job_id])
 
+        # show management page
         apply_template(:job, {:job => job})
+      end
+
+      get '/job/requestable/:job_id' do
+        job = Job.new(user, params[:job_id])
+        job.requestable?.to_json
+      end
+
+      get '/job/sources/:job_id' do
+        job = Job.new(user, params[:job_id])
+
+        return {ppg: job.ppg_filename, sources: job.find_sources}.to_json
       end
 
       # Delete the job and go home.
@@ -175,23 +190,62 @@ module Pione
         redirect '/'
       end
 
-      post '/job/upload/ppg/:job_id' do
-        filename = params[:file][:filename]
+      post '/job/upload-by-file/:input_type/:job_id' do
+        job = Job.new(user, params[:job_id])
+
+        filename = URI.unescape(params[:file][:filename])
         filepath = params[:file][:tempfile].path
 
-        if handler = Global.job_queue.find_handler(params[:job_id])
-          handler.upload_ppg(filename, filepath)
+        if job.exist?
+          case params[:input_type]
+          when "ppg"
+            job.upload_ppg_by_file(filename, filepath)
+          when "source"
+            job.upload_source_by_file(filename, filepath)
+          else
+            return 404, "Unknown input type."
+          end
+          return 200, "Uploaded."
+       else
+          return 404, "No such job found."
+        end
+      end
+
+      post '/job/upload-by-url/:job_id' do
+        job = Job.new(user, params[:job_id])
+
+        if job.exist?
+          case params[:input_type]
+          when "ppg"
+            job.upload_ppg_by_url(params[:filename], params[:url])
+          when "source"
+            job.upload_source_by_url(params[:filename], params[:url])
+          else
+            return 404, "Unknown input type."
+          end
+          return 200, "Queued."
         else
           return 404, "No such job found."
         end
       end
 
-      post '/job/upload/file/:job_id' do
-        filename = params[:file][:filename]
-        filepath = params[:file][:tempfile].path
+      get '/job/request/:job_id' do
+        job = workspace.find_job(params["job_id"])
 
-        if handler = Global.job_queue.find_handler(params[:job_id])
-          req.upload_file(filename, filepath)
+        if job
+          Global.job_queue.request(job)
+          return 200, "Request has been queued."
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      get '/job/clear/:job_id' do
+        job = workspace.find_job(params["job_id"])
+
+        if job
+          job.clear_base_location
+          return 200, "Request has been queued."
         else
           return 404, "No such job found."
         end
@@ -199,17 +253,17 @@ module Pione
 
       # Send the job result zip file of the session.
       get '/job/result/:job_id/:filename' do
-        user = User.new(session[:email], Global.workspace_root)
         job = Job.new(user, params[:job_id])
-        location = job.results_dir + params[:filename]
 
-        if job.exist? and location.exist?
+        zip = job.results_location + params[:filename]
+
+        if job.exist? and zip.exist?
           content_type "application/zip"
-          last_modified zip_location.mtime
+          last_modified zip.mtime
 
-          send_file(zip_location.path.to_s)
+          send_file(zip.path.to_s)
         else
-          return 404, "No such results"
+          return 404, "No such results."
         end
       end
 
@@ -217,9 +271,12 @@ module Pione
       # Interactive Operation
       #
 
-      get %r{/interactive/(\w+)/(.+)} do |session_id, path|
-        if (req = Global.job_queue.find_request(session_id))
+      get %r{/interactive/(\w+)/(.+)} do |job_id, path|
+        job = Job.new(user, params[:job_id])
+
+        if job
           file = Location[Temppath.mkdir] + path
+          Global.interactive_operation_manager.finish(job_id, params[:result])
           pione_interactive = DRb::DRbObject.new_with_uri(req.interactive_front)
           if data = pione_interactive.file(path)
             file.write(data)
@@ -241,16 +298,25 @@ module Pione
         "Interactive operation has finished."
       end
 
+
       #
       # Admin
       #
 
+      # Show administration page.
       get '/admin' do
-        workspace = Workspace.new(Global.workspace_root)
-
         apply_template(:admin, users: workspace.find_users)
       end
 
+      # Set the configuration.
+      post '/admin/conf' do
+        current_workspace = workspace
+        current_workspace.title = params[:workspace_title]
+        current_workspace.save
+        redirect '/admin'
+      end
+
+      # Delete the user.
       get '/admin/user/delete/:user_name' do
         if user.exist?
           user.delete
@@ -270,14 +336,18 @@ module Pione
       # Websocket event handlers
       #
 
-      # Request a job.
-      Global.io.on("request") do |data, client|
-        Global.job_queue.request(data["job_id"], data["uploadMethod"], data["ppg"], data["files"])
+      Global.io.on("join-job") do |data, client|
+        Global.websocket_manager.add(data["job_id"], client.session)
+      end
+
+      Global.io.on("disconnect") do |client|
+        Global.websocket_manager.clean(client.session)
       end
 
       # Cancel the job.
       Global.io.on("cancel") do |data, client|
-        Global.job_queue.cancel(data["job_id"])
+        job = workspace.find_job(data["job_id"])
+        Global.job_queue.cancel(job)
       end
 
       # finish interactive operation

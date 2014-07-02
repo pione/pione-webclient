@@ -5,11 +5,12 @@ module Pione
       # job information filename
       JOBINFO_FILENAME = "job-info.yml"
 
-      attr_accessor :name
       attr_reader :id
+      attr_accessor :desc
       attr_reader :ctime
       attr_reader :mtime
       attr_accessor :status
+      attr_reader :ppg_filename
 
       # @param [User] user
       #   user object
@@ -17,11 +18,12 @@ module Pione
       #   job ID
       def initialize(user, id=nil)
         @user = user
-        @name = nil
+        @desc = nil
         @id = nil
         @ctime = nil
         @mtime = nil
         @status = :created
+        @ppg_filename = nil
 
         if id
           @id = id
@@ -49,10 +51,11 @@ module Pione
 
         data = {
           :id     => @id,
-          :name   => @name,
-          :ctime  => (@ctime || now).iso8601,
-          :mtime  => now.iso8601,
+          :desc   => @desc,
+          :ctime  => Timestamp.dump(@ctime) || Timestamp.dump(now),
+          :mtime  => Timestamp.dump(now),
           :status => @status,
+          :ppg_filename => @ppg_filename,
         }
         jobinfo.write(YAML.dump(data))
       end
@@ -71,8 +74,79 @@ module Pione
         dir + JOBINFO_FILENAME
       end
 
-      def results_dir(filename)
+      def base_location
+        dir + "base"
+      end
+
+      def result_location
         dir + "results"
+      end
+
+      def input_location
+        dir + "input"
+      end
+
+      def ppg_location
+        dir + "ppg"
+      end
+
+      def upload_ppg_by_file(filename, filepath)
+        @ppg_filename = filename
+        ppg = ppg_location + filename
+        Location[filepath].copy(ppg)
+        ppg.mtime = Time.now
+        save
+      end
+
+      def upload_source_by_file(filename, filepath)
+        location = input_location + filename
+        Location[filepath].copy(location)
+        location.mtime = Time.now
+      end
+
+      def upload_ppg_by_url(filename, url)
+        @ppg_filename = filename
+        Global.download_queue.add(@id, url, ppg_location + filename)
+        save
+      end
+
+      def upload_source_by_url(filename, url)
+        Global.download_queue.add(@id, url, input_location + filename)
+      end
+
+      def find_sources
+        if input_location.exist?
+          return input_location.entries.each_with_object([]) do |entry, sources|
+            if entry.file?
+              sources << entry.basename
+            end
+          end
+        else
+          return []
+        end
+      end
+
+      # Clear current base directory.
+      def clear_base_location
+        tmpdir = @dir + "base_removed"
+        base_location.move(tmpdir)
+        base_location.mkdir
+        tmpdir.delete
+      end
+
+      def requestable?
+        exist? and not(@ppg_filename.nil?) and not(Global.job_queue.active?(@id))
+        # TODO: we should consider download queue
+      end
+
+      # Make a zip archive as result of the request.
+      #
+      # @return [Location::DataLocation]
+      #   location of the zip archive
+      def make_zip(filename)
+        zip = zip_location + filename
+        Util::Zip.compress(base_location, zip)
+        return zip
       end
 
       private
@@ -81,20 +155,11 @@ module Pione
       # @return [void]
       def read_from_jobinfo
         data = YAML.load(jobinfo.read)
-        @name = data[:name]
-        @ctime = parse_timestamp(data[:ctime])
-        @mtime = parse_timestamp(data[:mtime])
+        @desc = data[:desc]
+        @ctime = Timestamp.parse(data[:ctime])
+        @mtime = Timestamp.parse(data[:mtime])
         @status = data[:status]
-      end
-
-      # Parse the timestamp string as a date object. This assumes the timestamp
-      # is ISO8601 format.
-      #
-      # @return [void]
-      def parse_timestamp(timestamp)
-        if timestamp
-          return Time.iso8601(timestamp)
-        end
+        @ppg_filename = data[:ppg_filename]
       end
 
       # Generate a new job ID.

@@ -26,11 +26,19 @@ module Pione
 
     define_external_item(:job_queue_max) do |item|
       item.desc = "Max size of job queue."
-      item.init = 5
+      item.init = 100
+    end
+
+    define_internal_item(:download_queue) do |item|
+      item.desc = "Download queue for webclient."
     end
 
     define_internal_item(:interactive_operation_manager) do |item|
       item.desc = "Interactive operation manager for webclient."
+    end
+
+    define_internal_item(:websocket_manager) do |item|
+      item.desc = "WebSocket manager."
     end
 
     define_external_item(:stand_alone) do |item|

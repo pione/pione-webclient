@@ -10,6 +10,27 @@
 <%= erb :header %>
 <%= erb :navigation_bar %>
 
+   <section id="conf">
+     <h2>Configuration</h2>
+     <div class="panel panel-default">
+	<div class="panel-body">
+	  <form class="form-horizontal" action="/admin/conf" method="post">
+	    <fieldset>
+	      <div class="control-group">
+		<label class="control-label" for="workspace_title">Title</label>
+		<div class="controls">
+		  <input type="text" class="input-xlarge" id="workspace_title" name="workspace_title" value="<%= workspace.title %>" required/>
+		</div>
+	      </div>
+	      <div class="form-actions">
+		<button type="submit" class="btn btn-primary">submit</button>
+	      </div>
+	    </fieldset>
+	  </form>
+	</div>
+     </div>
+   </section>
+
     <!-- User List -->
     <section id="user-list">
       <h2>Users in Workspace</h2>
@@ -46,11 +67,6 @@
     <!-- ------------------------------------------------------------ -->
     <!-- JS                                                           -->
     <!-- ------------------------------------------------------------ -->
-    <script src="/lib/js/underscore.js"></script>
-    <script src="/<%= Pione::Global.resource[:jquery_js] %>"></script>
-    <script src="/<%= Pione::Global.resource[:bootstrap_js] %>"></script>
-    <script src="/rocketio/rocketio.js"></script>
-    <script src="/js/pione-webclient.js"></script>
-    <script type="text/javascript" src="https://www.dropbox.com/static/api/1/dropins.js" id="dropboxjs" data-app-key="<%= Pione::Global.dropins_app_key %>"></script>
+<%= erb :jslibs %>
   </body>
 </html>

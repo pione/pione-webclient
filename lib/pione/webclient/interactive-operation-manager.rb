@@ -28,7 +28,7 @@ module Pione
       #   front address of pione-interactive
       # @return [String]
       #   returned value
-      def request_page(job_id, front_address)
+      def request_page(job_id, interaction_id, front_address)
         lock_interactive_operation(job_id)
 
         # find current job's request and send interactive front address to it
@@ -36,12 +36,10 @@ module Pione
         req.interactive_front = front_address
 
         # send "interactive-page" command by websocket
-        Global.job_manager.session_ids(job_id).each do |session_id|
-          Global.io.push(
-            "interactive-page",
-            {url: "/job/%s/page/index.html" % job_id},
-            :to => session_id)
-        end
+        Global.io.push(
+          "interactive-page",
+          {url: "/interactive/%s/index.html" % job_id},
+          :to => Global.websocket_manager.find(job_id))
 
         # wait to finish the operation
         sleep_thread(job_id)
@@ -65,12 +63,10 @@ module Pione
         lock_interactive_operation(job_id)
 
         # notify a start of interactive operation
-        Global.job_manager.session_ids(job_id).each do |session_id|
-          Global.io.push(
-            "interactive-dialog",
-            {content: data[:content], script: data[:script]},
-            :to => session_id)
-        end
+        Global.io.push(
+          "interactive-dialog",
+          {content: data[:content], script: data[:script]},
+          :to => Global.websocket_manager.find(job_id))
 
         # wait to finish the operation
         sleep_thread(job_id)
@@ -89,9 +85,10 @@ module Pione
         thread.wakeup
 
         # notify interactive operation has finshed
-        Global.job_manager.session_ids(job_id).each do |session_id|
-          Global.io.push("finish-interactive-operation", {}, :to => session_id)
-        end
+        Global.io.push(
+          "finish-interactive-operation",
+          {},
+          :to => Global.websocket_manager.find(job_id))
       end
 
       private
@@ -103,13 +100,13 @@ module Pione
       #   session ID
       # @return [Mutex]
       #   a lock for the operation
-      def lock_interactive_operation(session_id)
+      def lock_interactive_operation(job_id)
         operation_lock = nil
 
         # get the lock object
         @manager_lock.synchronize do
-          @session_lock_table[session_id] ||= Mutex.new
-          operation_lock = @session_lock_table[session_id]
+          @session_lock_table[job_id] ||= Mutex.new
+          operation_lock = @session_lock_table[job_id]
         end
 
         return operation_lock.lock
@@ -117,8 +114,8 @@ module Pione
 
       # Sleep current thread until interactive operation completes. This
       # sleeping thread will wake up by #finish.
-      def sleep_thread(session_id)
-        @thread[session_id] = Thread.current
+      def sleep_thread(job_id)
+        @thread[job_id] = Thread.current
         Thread.stop
       end
     end
