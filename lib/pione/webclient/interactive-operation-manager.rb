@@ -24,6 +24,8 @@ module Pione
       #
       # @param [String] job_id
       #   job ID
+      # @param [String] interaction_id
+      #   interaction ID
       # @param [String] front_address
       #   front address of pione-interactive
       # @return [String]
