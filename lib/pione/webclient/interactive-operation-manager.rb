@@ -8,14 +8,20 @@ module Pione
         # lock for mutual exclusive actions of this manager
         @manager_lock = Mutex.new
 
-        # lock table for sessions
-        @session_lock_table = Hash.new
+        # lock table for jobs
+        @job_lock_table = Hash.new
 
-        # result table
+        # result value table
         @result = Hash.new
 
         # thread table for waiting operations
         @thread = Hash.new
+
+        # pione-interactive's front addresses
+        @front = Hash.new
+
+        # current request table
+        @requests = Array.new
       end
 
       # Request a page rendering for showing HTML contents. This sends
@@ -31,26 +37,47 @@ module Pione
       # @return [String]
       #   returned value
       def request_page(job_id, interaction_id, front_address)
-        lock_interactive_operation(job_id)
+        @manager_lock.synchronize do
+          if known?(job_id, interaction_id)
+            raise Webclient::InteractiveOperationFailure.new("The interaction exists already." % job_id)
+          else
+            @requests << key_of(job_id, interaction_id)
+          end
+        end
 
-        # find current job's request and send interactive front address to it
-        req = Global.job_queue.find_request(job_id)
-        req.interactive_front = front_address
+        # check job
+        unless Workspace.new(Global.workspace_root).find_job(job_id)
+          raise Webclient::InteractiveOperationFailure.new("The job is unknown: %s" % job_id)
+        end
 
-        # send "interactive-page" command by websocket
-        Global.io.push(
-          "interactive-page",
-          {url: "/interactive/%s/index.html" % job_id},
-          :to => Global.websocket_manager.find(job_id))
+        begin
+          # lock for job
+          lock_interaction(job_id)
 
-        # wait to finish the operation
-        sleep_thread(job_id)
+          # record the front address
+          @front[key_of(job_id, interaction_id)] = front_address
 
-        # clear interactive front address
-        req.interactive_front = nil
+          # send "interactive-page" command by websocket
+          Global.io.push(
+            "interactive-page",
+            {url: "/interactive/%s/%s/index.html" % [job_id, interaction_id]},
+            :to => Global.websocket_manager.find(job_id))
 
-        # return the result
-        return @result.delete(job_id)
+          # wait to finish the operation
+          sleep_thread(job_id, interaction_id)
+
+          # return the result
+          return @result.delete(key_of(job_id, interaction_id))
+
+        ensure
+          # clear informations
+          @front[key_of(job_id, interaction_id)] = nil
+          @request.delete(key_of(job_id, interaction_id))
+          @result.delete(key_of(job_id, interaction_id))
+
+          # unlock for job
+          unlock_interaction(job_id)
+        end
       end
 
       # Request a dialog to show to users.
@@ -61,7 +88,7 @@ module Pione
       #   request data
       # @return [String]
       #   returned value
-      def request_dialog(job_id, data)
+      def request_dialog(job_id, interaction_id, data)
         lock_interactive_operation(job_id)
 
         # notify a start of interactive operation
@@ -74,16 +101,21 @@ module Pione
         sleep_thread(job_id)
 
         # return the result
-        return @result.delete(job_id)
+        return @result.delete(key_of(job_id, interaction_id))
+      end
+
+      # Return true only if the interaction is known.
+      def known?(job_id, interaction_id)
+        @requests.include?(key_of(job_id, interaction_id))
       end
 
       # Finish the request.
       #
       # @param [String] session_id
       #   session ID
-      def finish(job_id, result)
-        @result[session_id] = result
-        thread = @thread.delete(session_id)
+      def operation_finish(job_id, interaction_id, result)
+        @result[key_of(job_id, interaction_id)] = result
+        thread = @thread.delete(session_id(job_id, interaction_id))
         thread.wakeup
 
         # notify interactive operation has finshed
@@ -93,31 +125,72 @@ module Pione
           :to => Global.websocket_manager.find(job_id))
       end
 
+      # Execute the operation 'get'.
+      def operatioin_get(job_id, interaction_id, path)
+        interactive_front(job_id, interaction_id).get(path)
+      end
+
+      # Execute the operation 'create'.
+      def operation_create(job_id, interaction_id, path, content)
+        content = params[:content].to_s
+        pione_interactive = interactive_front(job_id, interaction_id)
+        return pione_interactive.create(path, content)
+      end
+
+      # Execute the operation 'delete'.
+      def operation_delete(job_id, interaction_id, path)
+        interactive_front(job_id, interaction_id).delete(path)
+      end
+
+      # Execute the operation 'list'.
+      def operation_list(job_id, interaction_id, path)
+        interactive_front(job_id, interaction_id).list(path)
+      end
+
       private
 
-      # Lock interactive operations. Interactive operations should be mutually
-      # exclusive.
+      def interactive_front(job_id, interaction_id)
+        if front_address = @front[key_of(job_id, interaction_id)]
+          return DRb::DRbObject.new_with_uri(front_address)
+        else
+          return nil
+        end
+      end
+
+      def key_of(job_id, interaction_id)
+        "%s_%s" % [job_id, interaction_id]
+      end
+
+      # Lock interactions for job. Interaction should be mutually exclusive by
+      # each job.
       #
-      # @param [String] session_id
+      # @param [String] job_id
       #   session ID
-      # @return [Mutex]
-      #   a lock for the operation
-      def lock_interactive_operation(job_id)
+      # @return [void]
+      def lock_interaction(job_id)
         operation_lock = nil
 
         # get the lock object
         @manager_lock.synchronize do
-          @session_lock_table[job_id] ||= Mutex.new
-          operation_lock = @session_lock_table[job_id]
+          @job_lock_table[job_id] ||= Mutex.new
+          operation_lock = @job_lock_table[job_id]
         end
 
         return operation_lock.lock
       end
 
+      def unlock_interaction(job_id)
+        operation_lock = nil
+        @manager_lock.synchronize do
+          operation_lock = @job_lock_table[job_id]
+        end
+        operation_lock.unlock
+      end
+
       # Sleep current thread until interactive operation completes. This
       # sleeping thread will wake up by #finish.
-      def sleep_thread(job_id)
-        @thread[job_id] = Thread.current
+      def sleep_thread(job_id, interaction_id)
+        @thread[key_of(job_id, interaction_id)] = Thread.current
         Thread.stop
       end
     end

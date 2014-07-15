@@ -56,6 +56,7 @@ module Pione
 
       enable :sessions
       register Sinatra::RocketIO
+      register Sinatra::MultiRoute
 
       configure :development do
         register Sinatra::Reloader
@@ -271,33 +272,67 @@ module Pione
       # Interactive Operation
       #
 
-      get %r{/interactive/(\w+)/(.+)} do |job_id, path|
-        job = Job.new(user, params[:job_id])
+      route(:get, :post, %r{/interactive/(\w+)/(\w+)(.+)}) do |job_id, interaction_id, path|
+        manager = Global.interactive_operation_manager
 
-        if job
-          file = Location[Temppath.mkdir] + path
-          Global.interactive_operation_manager.finish(job_id, params[:result])
-          pione_interactive = DRb::DRbObject.new_with_uri(req.interactive_front)
-          if data = pione_interactive.file(path)
-            file.write(data)
-            send_file(file.path.to_s)
+        # default action is get
+        params[:action] ||= "get"
+
+        # check the interaction
+        unless manager.known?(job_id, interaction_id)
+          return 404, "No such interaction exists."
+        end
+
+        if params[:action]
+          case params[:action]
+          when "finish"
+            manager.operation_finish(job_id, interaction_id, params[:result] || "")
+            return 200, "The interaction has finished. Please go back to the job management page."
+
+          when "get"
+            if data = manager.operation_get(job_id, interaction_id, path)
+              file = Location[Temppath.mkdir] + path
+              file.write(data)
+              send_file(file.path.to_s)
+            else
+              return 404, "file not found"
+            end
+
+          when "create"
+            if params[:content]
+              if manager.operation_create(job_id, interaction_id, path, content)
+                return 200, "The operation 'create' has succeeded."
+              else
+                return 500, "The operation 'create' has failed."
+              end
+            else
+              return 400, "The operation 'create' requires the content."
+            end
+
+          when "delete"
+            if manager.operation_delete(job_id, interaction_id, path)
+              return 200, "The operation 'delete' has succeeded."
+            else
+              return 500, "The operation 'delete' has failed."
+            end
+
+          when "list"
+            list = manager.operation_list(job_id, interaction_id, path)
+            if list.nil?
+              return 500, "The operation 'list' has failed."
+            end
+
+            if list
+              return list.to_json
+            else
+              return 404, "Cannot list."
+            end
+
           else
-            return 404, "file not found"
+            return 400, "This operation is invalid."
           end
         end
       end
-
-      post '/interactive/:job_id/' do
-        send_file(req.working_directory + "index.html")
-      end
-
-      post '/interactive/:job_id/finish' do
-        # finish interactive operation
-        Global.interactive_operation_manager.finish(params[:job_id], params[:result])
-
-        "Interactive operation has finished."
-      end
-
 
       #
       # Admin

@@ -3,6 +3,7 @@ Thread.abort_on_exception = true
 require 'sinatra/base'
 require 'sinatra/reloader'
 require 'sinatra/rocketio'
+require "sinatra/multi_route"
 
 require 'pione'
 require 'pione/global/webclient-variable'

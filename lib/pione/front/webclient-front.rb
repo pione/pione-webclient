@@ -21,9 +21,6 @@ module Pione
       #   a result string of requested interactive operation
       def request_interaction(job_id, interaction_id, type, data)
         check_interactive_operation_manager
-        unless Global.interactive_operation_manager
-          raise Webclient::InteractiveOperationFailure.new("Interactive operation manager not found.")
-        end
 
         # run the request
         case type

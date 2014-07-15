@@ -128,7 +128,7 @@ module Pione
 
       # Clear current base directory.
       def clear_base_location
-        tmpdir = @dir + "base_removed"
+        tmpdir = dir + "base_removed"
         base_location.move(tmpdir)
         base_location.mkdir
         tmpdir.delete
