@@ -22,7 +22,7 @@ PioneWebclient.initModel = function () {
     // update sources
     PioneWebclient.updateSources();
 
-    // disable request button
+    // enable request button
     PioneWebclient.enableRequest(true);
 };
 
@@ -32,21 +32,70 @@ PioneWebclient.updateSources = function() {
 	"/job/sources/" + PioneWebclient.jobId,
 	function (info) {
 	    // update ppg
+	    $("#ppg-file").empty();
+	    var ppg_record = $("<tr/>");
 	    if (info.ppg != undefined) {
-		$("#ppg").text(info.ppg);
+		var link = $("<a/>")
+		    .text(info.ppg.filename)
+		    .attr("href", PioneWebclient.inputFileUrl("ppg", info.ppg.filename));
+		$("<td/>").append(link).appendTo(ppg_record);
+		$("<td/>").text(info.ppg.size).appendTo(ppg_record);
+		$("<td/>").text(info.ppg.mtime).appendTo(ppg_record);
+		var op_delete = $("<a/>").html("&times;");
+		op_delete.on("click", function () {
+		    PioneWebclient.deleteInputFile("ppg", info.ppg.filename)
+		});
+		$("<td/>").append(op_delete).appendTo(ppg_record);
 	    } else {
-		$("#ppg").text("No package");
+		$("<td/>").text("no package").appendTo(ppg_record);
+		$("<td/>").text("-").appendTo(ppg_record);
+		$("<td/>").text("-").appendTo(ppg_record);
+		$("<td/>").text("-").appendTo(ppg_record);
 	    }
+	    $("#ppg-file").append(ppg_record);
 
 	    // update sources
 	    $("#sources").empty();
 	    if (info.sources.length > 0) {
-		_.each(info.sources, function(source) {$("#sources").append(source);});
+		_.each(info.sources, function(source) {
+		    var source_record = $("<tr/>");
+		    var link = $("<a/>")
+			.text(source.filename)
+			.attr("href", PioneWebclient.inputFileUrl("ppg", source.filename));
+		    $("<td/>").append(link).appendTo(source_record);
+		    $("<td/>").text(source.size).appendTo(source_record);
+		    $("<td/>").text(source.mtime).appendTo(source_record);
+		    var op_delete = $("<a/>").html("&times;");
+		    op_delete.on("click", function () {
+			PioneWebclient.deleteInputFile("source", source.filename)
+		    });
+		    $("<td/>").append(op_delete).appendTo(source_record);
+		    $("#sources").append(source_record);
+		});
 	    } else {
-		$("#sources").append("No sources");
+		var source_record = $("<tr/>");
+		$("<td/>").text("no sources").appendTo(source_record);
+		$("<td/>").text("-").appendTo(source_record);
+		$("<td/>").text("-").appendTo(source_record);
+		$("<td/>").text("-").appendTo(source_record);
+		$("#sources").append(source_record);
 	    }
 	}
     );
+};
+
+PioneWebclient.inputFileUrl = function (input_type, filename) {
+    var jobId = PioneWebclient.jobId;
+    return "/job/input/get/" + jobId + "/" + input_type + "/" + filename;
+};
+
+PioneWebclient.deleteInputFile = function (input_type, filename) {
+    var jobId = PioneWebclient.jobId;
+    $.ajax({
+	url: "/job/input/delete/" + jobId + "/" + input_type + "/" + filename,
+	type: "GET",
+	success: PioneWebclient.updateSources
+    });
 };
 
 // Upload by file.
@@ -85,7 +134,7 @@ PioneWebclient.handleFileSelect = function (input_type) {
 	    PioneWebclient.uploadByFile(input_type, files[0]);
 	    break;
 	case "sources":
-	    _.each(files, function(file) {PioneWebclient.uploadByFile(input_type, file)});
+	    _.each(files, function(file) {PioneWebclient.uploadByFile("source", file)});
 	    break;
 	}
     };
@@ -131,25 +180,39 @@ PioneWebclient.resetChooser = function () {
 
 // Enable or disable job request button.
 PioneWebclient.enableRequest = function (state) {
-    $("#request").disabled = state;
-    $("#request").toggleClass("disabled", !state);
+    PioneWebclient.enableOperationButton(state, "#request");
 };
 
 // Enable or disable job cancel button.
 PioneWebclient.enableCancel = function (state) {
-    $("#cancel").disabled = state;
-    $("#cancel").toggleClass("disabled", !state);
+    PioneWebclient.enableOperationButton(state, "#cancel");
+};
+
+// Enable or disable base directory clear button.
+PioneWebclient.enableClear = function (state) {
+    PioneWebclient.enableOperationButton(state, "#clear");
+};
+
+// Enable or disable the button.
+PioneWebclient.enableOperationButton = function (state, id) {
+    $(id).disabled = state;
+    $(id).toggleClass("disabled", !state);
 };
 
 // Show message log section or not.
 PioneWebclient.showMessageLog = function (state) {
     if (state) {
-	$("#message-log pre").empty();
+	PioneWebclient.clearMessageLog();
 	$("#message-log").fadeIn();
     } else {
 	$("#message-log").fadeOut();
-	$("#message-log pre").empty();
+	PioneWebclient.clearMessageLog();
     }
+}
+
+// Clear message log contents.
+PioneWebclient.clearMessageLog = function () {
+    $("#message-log pre").empty();
 }
 
 // Scroll by adding a line of message log.
@@ -173,12 +236,18 @@ PioneWebclient.toggleFollowMessageLog = function () {
 
 // Show target section or not.
 PioneWebclient.showTarget = function (state) {
-    if (state) {
-	$("#target").fadeIn();
-    } else {
-	$("#target").fadeOut();
-    }
-}
+    state ? $("#target").fadeIn() : $("#target").fadeOut();
+};
+
+// Update job description.
+PioneWebclient.updateJobDescription = function (text) {
+    $.ajax({
+	url: "/job/desc/" + PioneWebclient.jobId,
+	type: "POST",
+	data: {text: text}
+    });
+};
+
 
 // Clear the webclient.
 PioneWebclient.clear = function () {
@@ -187,6 +256,7 @@ PioneWebclient.clear = function () {
     PioneWebclient.resetDirectUploader();
     PioneWebclient.enableRequest(false);
     PioneWebclient.enableCancel(false);
+    PioneWebclient.enableClear(true)
     PioneWebclient.showMessageLog(false);
     PioneWebclient.showTarget(false);
     if (PioneWebclient.connection) {
@@ -200,7 +270,6 @@ PioneWebclient.clear = function () {
 
 // Make a websocket connection.
 PioneWebclient.io = new RocketIO();
-PioneWebclient.io.connect("");
 
 // Handle "connect" messages.
 PioneWebclient.io.on("connect", function(data) {
@@ -209,7 +278,7 @@ PioneWebclient.io.on("connect", function(data) {
     PioneWebclient.setGoodServerStatus("Connected");
 
     // join job id
-    if (PioneWebclient.mode == "manage_job") {
+    if (PioneWebclient.mode == "job_operation") {
 	PioneWebclient.io.push("join-job", {job_id: PioneWebclient.jobId});
     }
 });
@@ -260,6 +329,7 @@ PioneWebclient.io.on("status", function(data) {
 	PioneWebclient.showError("PIONE failed to fetch source files.");
 	PioneWebclient.enableRequest(true);
 	PioneWebclient.enableCancel(false);
+	PioneWebclient.enableClear(true);
 	break;
     case "START_PROCESSING":
 	PioneWebclient.setGoodJobStatus("Processing");
@@ -273,6 +343,7 @@ PioneWebclient.io.on("status", function(data) {
 	PioneWebclient.showError("PIONE failed to process your job.");
 	PioneWebclient.enableRequest(true);
 	PioneWebclient.enableCancel(false);
+	PioneWebclient.enableClear(true);
 	break;
     case "END_PROCESSING":
 	PioneWebclient.setGoodJobStatus("Archiving");
@@ -290,6 +361,8 @@ PioneWebclient.io.on("status", function(data) {
 	PioneWebclient.setGoodJobStatus("Wait Request");
 	PioneWebclient.showInfo("Your job canceled.");
 	PioneWebclient.enableRequest(true);
+	PioneWebclient.enableCancel(false);
+	PioneWebclient.enableClear(true);
 	break;
     }
 });
@@ -298,7 +371,7 @@ PioneWebclient.io.on("status", function(data) {
 PioneWebclient.io.on("result", function(data) {
     if (data.job_id != PioneWebclient.jobId) return;
 
-    var path = "result/" + PioneWebclient.jobId + "/" + data["filename"];
+    var path = "/job/result/" + PioneWebclient.jobId + "/" + data["filename"];
     $("#target-saver").attr("href", path);
     $("#target-saver").attr("data-filename", data["filename"]);
     $("#target-download").attr("href", path);
@@ -306,6 +379,7 @@ PioneWebclient.io.on("result", function(data) {
     PioneWebclient.showTarget(true);
     PioneWebclient.enableRequest(true);
     PioneWebclient.enableCancel(false);
+    PioneWebclient.enableCancel(true);
 });
 
 // Handle "message-log" messages.
@@ -329,19 +403,17 @@ PioneWebclient.io.on("message-log", function(data) {
     PioneWebclient.scrollByMessageLog();
 });
 
-// Handle "interactive-page" messages.
-PioneWebclient.io.on("interactive-page", function(data) {
+// Handle "interaction-page" messages.
+PioneWebclient.io.on("interaction-page", function(data) {
     if (data.job_id != PioneWebclient.jobId) return;
 
-    // load contents
-    var link = $("<a>");
-    link.attr("href", data["url"]);
-    link.attr("target", "_blank");
-    link.text("Click to start interactive operation.");
-    PioneWebclient.renderInteractiveOperationCanvas($("<div>").append(link).html());
+    // activate page interaction
+    PioneWebclient.activatePageInteraction(true)
 
-    // start interactive operation
-    PioneWebclient.showInteractiveOperationCanvas();
+    $("#interaction-button").on("click", function () {
+	var win = window.open(data.url, "_blank");
+	win.focus();
+    });
 });
 
 // Handle "interactive-dialog" messages.
@@ -358,19 +430,19 @@ PioneWebclient.io.on("interactive-dialog", function(data) {
     PioneWebclient.showInteractiveOperationCanvas();
 });
 
-PioneWebclient.io.on("finish-interactive-operation", function(data) {
+PioneWebclient.io.on("finish-interaction", function(data) {
     if (data.job_id != PioneWebclient.jobId) return;
 
-    // clear the canvas
-    PioneWebclient.clearInteractiveOperationCanvas();
+    // inactivate page interaction
+    PioneWebclient.activatePageInteraction(false);
 });
 
-// Handle "upload-ppg" messages.
+// Handle "requestable" messages.
 PioneWebclient.io.on("requestable", function(data) {
     if (data.job_id != PioneWebclient.jobId) return;
 
-    PiioneWebclient.enableReuqest(true);
-    PiioneWebclient.enableCancel(false);
+    PioneWebclient.enableReuqest(true);
+    PioneWebclient.enableCancel(false);
 });
 
 
@@ -386,6 +458,7 @@ PioneWebclient.sendRequest = function () {
 	type: "GET",
 	success: function() {
 	    PioneWebclient.enableRequest(false);
+	    PioneWebclient.enableClear(false);
 	    $("#message-log pre").empty();
 	    PioneWebclient.showTarget(false);
 	}
@@ -396,6 +469,20 @@ PioneWebclient.sendRequest = function () {
 PioneWebclient.sendCancel = function () {
     PioneWebclient.io.push("cancel", {job_id: PioneWebclient.jobId});
     PioneWebclient.enableCancel(false);
+};
+
+// Send a clear operation.
+PioneWebclient.sendClear = function () {
+    // send a request
+    $.ajax({
+	url: "/job/clear/" + PioneWebclient.jobId,
+	type: "GET",
+	success: function() {
+	    PioneWebclient.enableRequest(false);
+	    $("#message-log pre").empty();
+	    PioneWebclient.showTarget(false);
+	}
+    });
 };
 
 /* ------------------------------------------------------------ *
@@ -487,33 +574,25 @@ PioneWebclient.setUnknownServerStatus = function(status) {
 }
 
 /* ------------------------------------------------------------ *
-   Interactive operation
+   Interaction
  * ------------------------------------------------------------ */
-PioneWebclient.showInteractiveOperationCanvas = function() {
-    $("#interactive").show();
-}
 
-PioneWebclient.clearInteractiveOperationCanvas = function() {
-    $("#interactive").hide();
-    $("#interactive .canvas").empty();
-}
+PioneWebclient.activatePageInteraction = function(state) {
+    if (state) {
+	$("#interaction-button").attr("data-original-title", "Go to interaction page!");
+	$("#interaction-button").removeClass("inactive").addClass("active");
+	$("#interaction-button").tooltip('show');
+	setTimeout(function () {$("#interaction-button").tooltip('hide');}, 5000);
+    } else {
+	$("#interaction-button").attr("data-original-title", "No interaction.");
+	$("#interaction-button").removeClass("active").addClass("inactive");
+    }
+};
 
-PioneWebclient.renderInteractiveOperationCanvas = function (content) {
-    $("#interactive .canvas").html(content);
-}
-
-PioneWebclient.setupInteractiveOperationEvent = function() {
-    document.addEventListener("pione-interactive-result", function(event) {
-	// send to finish
-	PioneWebclient.io.push("finish-interactive-operation", event.result);
-    });
-}
-
-PioneWebclient.initInteractiveOperation = function () {
-    PioneWebclient.clearInteractiveOperationCanvas();
-    PioneWebclient.setupInteractiveOperationEvent();
-}
-
+PioneWebclient.setupInteraction = function () {
+    $("#interaction-button").tooltip();
+    $("#interaction-dialog").hide();
+};
 
 
 /* ------------------------------------------------------------ *
@@ -523,17 +602,22 @@ PioneWebclient.initInteractiveOperation = function () {
 // Do the action on loading the document.
 $(document).ready(function() {
     switch (PioneWebclient.mode) {
-    case "manage_job":
+    case "job_operation":
 	PioneWebclient.initModel();
 	$("#request").on("click", function () {PioneWebclient.sendRequest()});
 	$("#cancel").on("click", function () {PioneWebclient.sendCancel()});
-	$("#clear").on("click", function () {PioneWebclient.clear()});
+	$("#clear").on("click", function () {PioneWebclient.sendClear()});
+
+	PioneWebclient.setFollowMessageLog(true);
 	$("#follow-message-log").on("click", function () {PioneWebclient.toggleFollowMessageLog()});
-	PioneWebclient.initInteractiveOperation();
+
+	PioneWebclient.setupInteraction();
 	PioneWebclient.setupChooser();
 	PioneWebclient.setupDirectUploader();
 
-	PioneWebclient.setFollowMessageLog(true);
+	$("#job-desc").on("focusout", function () {
+	    PioneWebclient.updateJobDescription($("#job-desc").val());
+	});
 
 	// connect websocket server
 	PioneWebclient.io.connect();

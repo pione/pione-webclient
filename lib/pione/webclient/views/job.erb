@@ -11,11 +11,16 @@
 <%= erb :header %>
 <%= erb :navigation_bar %>
 
-    <% if job.desc %>
-    <section id="job_desc">
-      <%= job.desc %>
+    <section>
+      <form class="form-inline" role="form">
+	<div class="form-group">
+	  <div class="input-group">
+	    <div class="input-group-addon">Job Description</div>
+	    <input class="form-control" id="job-desc" type="text" value="<%= job.desc %>" />
+	  </div>
+	</div>
+      </form>
     </section>
-    <% end %>
 
     <!-- Source Panel -->
     <section id="source">
@@ -33,11 +38,14 @@
 	    </div>
 	  </div>
 
-	  <!-- show a source PPG file -->
-	  <div>
-	    <span class="glyphicon glyphicon-file"></span>
-	    <span id="ppg" class="source-names">No package</span>
-	  </div>
+	  <!-- show input PPG file -->
+	  <table class="table table-hover">
+	    <thead>
+	      <tr><th>Name</th><th>Size</th><th>Last Modified</th><th>Op</th></tr>
+	    </thead>
+	    <tbody id="ppg-file">
+	    </tbody>
+	  </table>
 
 	  <h3>Input Files</h3>
 	  <!-- buttons for selecting source data files -->
@@ -51,10 +59,13 @@
 	  </div>
 
 	  <!-- show source data files -->
-	  <div>
-	    <span class="glyphicon glyphicon-file"></span>
-	    <span id="sources" class="source-names">No sources</span>
-	  </div>
+	  <table class="table table-hover">
+	    <thead>
+	      <tr><th>Name</th><th>Size</th><th>Last Modified</th><th>Op</th></tr>
+	    </thead>
+	    <tbody id="sources">
+	    </tbody>
+	  </table>
 	</div>
       </div>
     </section>
@@ -69,7 +80,7 @@
 	<a class="btn btn-lg btn-default disabled" id="cancel">
 	  <span class="glyphicon glyphicon-stop"></span> Stop
 	</a>
-	<a class="btn btn-lg btn-default" id="clear" href="/job/clear/<%= job.id %>">
+	<a class="btn btn-lg btn-default" id="clear">
 	  <span class="glyphicon glyphicon-trash"></span> Clear
 	</a>
       </div>
@@ -85,13 +96,22 @@
       </div>
     </section>
 
-    <!-- Interactive Operation Canvas -->
-    <section id="interactive">
-      <h2>Interactive Operation Canvas</h2>
+    <!-- Interaction Message -->
+    <section id="interaction-dialog">
       <div class="modal fade">
 	<div class="modal-dialog">
-	  <div class="modal"
-	  <div class="canvas"></div>
+	  <div class="modal-content">
+	    <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+              <h4 class="modal-title" id="myModalLabel">Interaction occurred</h4>
+	    </div>
+	    <div class="modal-body">
+	      <div id="interaction-dialog-message"></div>
+	    </div>
+	    <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+	    </div>
+	  </div>
 	</div>
       </div>
     </section>
@@ -114,11 +134,14 @@
       <button id="follow-message-log">
 	<span class="glyphicon glyphicon-arrow-down"></span>
       </button>
-      <div class="unknown" id="job-status">
+      <button class="box inactive" id="interaction-button" data-toggle="tooltip" data-placement="bottom" title="No interaction">
+	Interaction
+      </button>
+      <div class="box unknown" id="job-status">
 	<span class="glyphicon glyphicon-question-sign"></span>
 	Job: <span class="status-name">Unknown</span>
       </div>
-      <div class="unknown" id="server-status">
+      <div class="box unknown" id="server-status">
 	<span class="glyphicon glyphicon-question-sign"></span>
 	Server: <span class="status-name">Unknown</span>
       </div>
@@ -134,7 +157,7 @@
     <!-- ------------------------------------------------------------ -->
 <%= erb :jslibs %>
     <script type="text/javascript">
-      PioneWebclient.mode = "manage_job";
+      PioneWebclient.mode = "job_operation";
       PioneWebclient.setJobId("<%= job.id %>");
     </script>
   </body>

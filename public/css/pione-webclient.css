@@ -140,7 +140,7 @@ h1 {
     z-index: 100;
 }
 
-#status-box div {
+#status-box .box {
     padding: 0.5em 1em;
     border-radius: 3px;
     font-weight: 700;
@@ -164,6 +164,17 @@ h1 {
 #status-box div.unknown {
     background-color: #C78EFF;
     border-color: #77c;
+}
+
+#status-box button.inactive {
+    background-color: #ccc;
+    border-color: #77c;
+}
+
+#status-box button.active {
+    background-color: #FF1C60;
+    border-color: #c77;
+    color: #DEE;
 }
 
 #follow-message-log {

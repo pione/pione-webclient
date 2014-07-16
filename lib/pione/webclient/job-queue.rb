@@ -55,9 +55,9 @@ module Pione
       # @param [String] job_id
       #   job ID
       def cancel(job)
-        if @request[job]
+        if @jobs.include?(job.id)
           # deactivate the request
-          @jobs.delete(job_id)
+          @jobs.delete(job.id)
 
           # kill processing PID
           if @pid[job.id]
@@ -66,6 +66,10 @@ module Pione
 
           # push status message
           update_status(job.id, name: "CANCELED")
+
+          return true
+        else
+          return false
         end
       end
 
@@ -214,9 +218,9 @@ module Pione
 
         # make the result zip file
         uuid = Util::UUID.generate
-        filename = now.strftime("pione-%Y%m%d%H%M%S.zip")
-        @result[uuid] = job.make_zip(filename)
-        Global.io.push(:result, {job_id: job.id, filename: filename}, :to => @webclient_manager.find(job.id))
+        filename = Time.now.strftime("pione-%Y%m%d%H%M%S.zip")
+        job.make_zip(filename)
+        Global.io.push(:result, {job_id: job.id, filename: filename}, :to => @websocket_manager.find(job.id))
 
         # push status message
         update_status(job.id, name: "COMPLETED")

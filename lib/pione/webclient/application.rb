@@ -43,16 +43,14 @@ module Pione
     class Application < Sinatra::Base
       include ApplicationUtil
 
-      enable :sessions
+      #
+      # settings
+      #
 
       set :server, 'thin'
       set :port, Global.webclient_port
       set :public_folder, Global.webclient_root + 'public'
       use Rack::CommonLogger
-
-      #
-      # common
-      #
 
       enable :sessions
       register Sinatra::RocketIO
@@ -64,12 +62,16 @@ module Pione
 
       # Go login page if the user is not logined.
       before do
-        unless request.path_info == "/login" or request.path_info == "/signup"
+        if request.path_info.start_with?("/job", "/workspace", "/admin", "/user", "/interactive")
           unless logined?
             save_referer
             redirect '/login'
           end
         end
+      end
+
+      get '/' do
+        redirect '/workspace'
       end
 
       #
@@ -78,7 +80,7 @@ module Pione
 
       # Show login page.
       get '/login' do
-        not(logined?) ? apply_template(:login) : redirect('/')
+        not(logined?) ? apply_template(:login) : redirect('/workspace')
       end
 
       # Process authentications.
@@ -88,7 +90,7 @@ module Pione
         if new_user.auth(params[:password])
           session[:email] = params[:email]
 
-          go_back('/')
+          go_back('/workspace')
         else
           session[:message] = "Login failed because of no such user or bad password."
         end
@@ -98,7 +100,7 @@ module Pione
 
       # Show signup page.
       get '/signup' do
-        not(logined?) ? apply_template(:signup) : redirect('/')
+        not(logined?) ? apply_template(:signup) : redirect('/workspace')
       end
 
       # Process sign up.
@@ -118,7 +120,7 @@ module Pione
             session[:email] = params[:email]
 
             # go to previous page
-            go_back('/')
+            go_back('/workspace')
           else
             session[:message] = "The account exists already."
           end
@@ -138,7 +140,7 @@ module Pione
       #
 
       # Show workspace page. This page should be not cached.
-      get '/' do
+      get '/workspace' do
         jobs = user.find_jobs
 
         erb :workspace, :locals => {:jobs => jobs}
@@ -163,36 +165,59 @@ module Pione
 
       # Show a job management page.
       get '/job/manage/:job_id' do
-        job = Job.new(user, params[:job_id])
+        job = workspace.find_job(params[:job_id])
 
         # show management page
         apply_template(:job, {:job => job})
       end
 
       get '/job/requestable/:job_id' do
-        job = Job.new(user, params[:job_id])
+        job = workspace.find_job(params[:job_id])
         job.requestable?.to_json
       end
 
       get '/job/sources/:job_id' do
         job = Job.new(user, params[:job_id])
 
-        return {ppg: job.ppg_filename, sources: job.find_sources}.to_json
+        if job.exist?
+          if job.ppg_filename and ppg = job.ppg_file(job.ppg_filename)
+            return {
+              ppg: {
+                filename: ppg.basename,
+                size: ppg.size,
+                mtime: ppg.mtime.iso8601},
+              sources: job.find_sources.map{|filename|
+                source = job.source_file(filename)
+                { filename: filename,
+                  size: source.size,
+                  mtime: source.mtime.iso8601}}
+            }.to_json
+          else
+            return {
+              sources: job.find_sources.map{|filename|
+                source = job.source_file(filename)
+                { filename: filename,
+                  size: source.size,
+                  mtime: source.mtime.iso8601}}}.to_json
+          end
+        else
+          return 404, "No such job found."
+        end
       end
 
       # Delete the job and go home.
       get '/job/delete/:job_id' do
-        job = Job.new(user, params[:job_id])
+        job = workspace.find_job(params[:job_id])
 
         # delete the job if it exists
         job.delete if job.exist?
 
         # go workspace
-        redirect '/'
+        redirect '/workspace'
       end
 
       post '/job/upload-by-file/:input_type/:job_id' do
-        job = Job.new(user, params[:job_id])
+        job = workspace.find_job(params[:job_id])
 
         filename = URI.unescape(params[:file][:filename])
         filepath = params[:file][:tempfile].path
@@ -213,7 +238,7 @@ module Pione
       end
 
       post '/job/upload-by-url/:job_id' do
-        job = Job.new(user, params[:job_id])
+        job = workspace.find_job(params[:job_id])
 
         if job.exist?
           case params[:input_type]
@@ -230,8 +255,48 @@ module Pione
         end
       end
 
+      get '/job/input/get/:job_id/:type/:filename' do
+        job = workspace.find_job(params[:job_id])
+        file = nil
+
+        if job.exist?
+          case params[:type]
+          when "ppg"
+            file = job.ppg_file(params[:filename])
+          when "source"
+            file = job.source_file(params[:filename])
+          end
+
+          if file
+            return send_file(file.path)
+          else
+            return 404, "The file doesn't exist."
+          end
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      get '/job/input/delete/:job_id/:type/:filename' do
+        job = workspace.find_job(params[:job_id])
+
+        if job.exist?
+          case params[:type]
+          when "ppg"
+            job.delete_ppg(params[:filename])
+          when "source"
+            job.delete_source(params[:filename])
+          else
+            return 404, "Unknown input type."
+          end
+          return 200, "The input file has deleted."
+        else
+          return 404, "No such job found."
+        end
+      end
+
       get '/job/request/:job_id' do
-        job = workspace.find_job(params["job_id"])
+        job = workspace.find_job(params[:job_id])
 
         if job
           Global.job_queue.request(job)
@@ -241,8 +306,22 @@ module Pione
         end
       end
 
+      get '/job/cancel/:job_id' do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          if Global.job_queue.cancel(job)
+            return 200, "The job has been canceled."
+          else
+            return 404, "The job is not processing."
+          end
+        else
+          return 404, "No souch job found."
+        end
+      end
+
       get '/job/clear/:job_id' do
-        job = workspace.find_job(params["job_id"])
+        job = workspace.find_job(params[:job_id])
 
         if job
           job.clear_base_location
@@ -254,9 +333,9 @@ module Pione
 
       # Send the job result zip file of the session.
       get '/job/result/:job_id/:filename' do
-        job = Job.new(user, params[:job_id])
+        job = workspace.find_job(params[:job_id])
 
-        zip = job.results_location + params[:filename]
+        zip = job.result_location + params[:filename]
 
         if job.exist? and zip.exist?
           content_type "application/zip"
@@ -268,11 +347,23 @@ module Pione
         end
       end
 
+      post '/job/desc/:job_id' do
+        job = workspace.find_job(params[:job_id])
+
+        if job.exist?
+          job.desc = params[:text]
+          job.save
+          return 200, "Job description has updated."
+        else
+          return 404, "No souch job found."
+        end
+      end
+
       #
       # Interactive Operation
       #
 
-      route(:get, :post, %r{/interactive/(\w+)/(\w+)(.+)}) do |job_id, interaction_id, path|
+      route(:get, :post, %r{/interactive/([\w-]+)/([\w-]+)/(.*)}) do |job_id, interaction_id, path|
         manager = Global.interactive_operation_manager
 
         # default action is get
@@ -300,7 +391,7 @@ module Pione
 
           when "create"
             if params[:content]
-              if manager.operation_create(job_id, interaction_id, path, content)
+              if manager.operation_create(job_id, interaction_id, path, params[:content])
                 return 200, "The operation 'create' has succeeded."
               else
                 return 500, "The operation 'create' has failed."
@@ -377,17 +468,6 @@ module Pione
 
       Global.io.on("disconnect") do |client|
         Global.websocket_manager.clean(client.session)
-      end
-
-      # Cancel the job.
-      Global.io.on("cancel") do |data, client|
-        job = workspace.find_job(data["job_id"])
-        Global.job_queue.cancel(job)
-      end
-
-      # finish interactive operation
-      Global.io.on("finish-interactive-operation") do |data, client|
-        Global.interactive_operation_manager.finish(data["job_id"], data)
       end
     end
   end

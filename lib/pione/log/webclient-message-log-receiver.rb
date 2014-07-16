@@ -10,7 +10,7 @@ module Pione
       end
 
       def receive(message, level, header, color, job_id)
-        data = {content: message, level: level, header: header, color: color}
+        data = {content: message, level: level, header: header, color: color, job_id: job_id}
         Global.io.push("message-log", data, to: @websocket_manager.find(job_id));
       end
     end

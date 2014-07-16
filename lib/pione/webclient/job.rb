@@ -91,6 +91,7 @@ module Pione
       end
 
       def upload_ppg_by_file(filename, filepath)
+        filename = basename(filename)
         @ppg_filename = filename
         ppg = ppg_location + filename
         Location[filepath].copy(ppg)
@@ -99,19 +100,58 @@ module Pione
       end
 
       def upload_source_by_file(filename, filepath)
+        filename = basename(filename)
         location = input_location + filename
         Location[filepath].copy(location)
         location.mtime = Time.now
       end
 
       def upload_ppg_by_url(filename, url)
+        filename = basename(filename)
         @ppg_filename = filename
         Global.download_queue.add(@id, url, ppg_location + filename)
         save
       end
 
       def upload_source_by_url(filename, url)
+        filename = basename(filename)
         Global.download_queue.add(@id, url, input_location + filename)
+      end
+
+      def delete_ppg(filename)
+        filename = basename(filename)
+        ppg = ppg_location + filename
+        if ppg.exist?
+          ppg.delete
+        else
+          return false
+        end
+      end
+
+      def delete_source(filename)
+        filename = basename(filename)
+        source = input_location + filename
+        if source.exist?
+          source.delete
+        else
+          return false
+        end
+      end
+
+      def ppg_file(filename)
+        filename = basename(filename)
+        ppg = ppg_location + filename
+        if ppg.exist?
+          return ppg
+        end
+      end
+
+      def source_file(filename)
+        filename = basename(filename)
+        source = input_location + filename
+        if source.exist?
+          return source
+        end
       end
 
       def find_sources
@@ -144,12 +184,17 @@ module Pione
       # @return [Location::DataLocation]
       #   location of the zip archive
       def make_zip(filename)
-        zip = zip_location + filename
+        filename = basename(filename)
+        zip = result_location + filename
         Util::Zip.compress(base_location, zip)
         return zip
       end
 
       private
+
+      def basename(filename)
+        Pathname.new(filename).basename
+      end
 
       # Read job informations from job information file.
       # @return [void]

@@ -36,7 +36,7 @@ module Pione
       #   front address of pione-interactive
       # @return [String]
       #   returned value
-      def request_page(job_id, interaction_id, front_address)
+      def request_page(job_id, interaction_id, data)
         @manager_lock.synchronize do
           if known?(job_id, interaction_id)
             raise Webclient::InteractiveOperationFailure.new("The interaction exists already." % job_id)
@@ -55,12 +55,12 @@ module Pione
           lock_interaction(job_id)
 
           # record the front address
-          @front[key_of(job_id, interaction_id)] = front_address
+          @front[key_of(job_id, interaction_id)] = data[:front_address]
 
           # send "interactive-page" command by websocket
           Global.io.push(
-            "interactive-page",
-            {url: "/interactive/%s/%s/index.html" % [job_id, interaction_id]},
+            "interaction-page",
+            {url: "/interactive/%s/%s/index.html" % [job_id, interaction_id], job_id: job_id},
             :to => Global.websocket_manager.find(job_id))
 
           # wait to finish the operation
@@ -72,7 +72,7 @@ module Pione
         ensure
           # clear informations
           @front[key_of(job_id, interaction_id)] = nil
-          @request.delete(key_of(job_id, interaction_id))
+          @requests.delete(key_of(job_id, interaction_id))
           @result.delete(key_of(job_id, interaction_id))
 
           # unlock for job
@@ -94,7 +94,7 @@ module Pione
         # notify a start of interactive operation
         Global.io.push(
           "interactive-dialog",
-          {content: data[:content], script: data[:script]},
+          {content: data[:content], script: data[:script], job_id: job_id},
           :to => Global.websocket_manager.find(job_id))
 
         # wait to finish the operation
@@ -111,28 +111,32 @@ module Pione
 
       # Finish the request.
       #
-      # @param [String] session_id
-      #   session ID
+      # @param [String] job_id
+      #   job ID
+      # @param [String] interaction_id
+      #   interaction ID
+      # @param [String] result
+      #   result value
       def operation_finish(job_id, interaction_id, result)
         @result[key_of(job_id, interaction_id)] = result
-        thread = @thread.delete(session_id(job_id, interaction_id))
+        thread = @thread.delete(key_of(job_id, interaction_id))
         thread.wakeup
 
         # notify interactive operation has finshed
         Global.io.push(
-          "finish-interactive-operation",
-          {},
+          "finish-interaction",
+          {job_id: job_id},
           :to => Global.websocket_manager.find(job_id))
       end
 
       # Execute the operation 'get'.
-      def operatioin_get(job_id, interaction_id, path)
+      def operation_get(job_id, interaction_id, path)
         interactive_front(job_id, interaction_id).get(path)
       end
 
       # Execute the operation 'create'.
       def operation_create(job_id, interaction_id, path, content)
-        content = params[:content].to_s
+        content = content.to_s
         pione_interactive = interactive_front(job_id, interaction_id)
         return pione_interactive.create(path, content)
       end

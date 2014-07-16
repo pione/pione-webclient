@@ -95,7 +95,7 @@ libs = LibInstaller.define(self) do |installer|
   # jquery
   installer.add do |lib|
     lib.type = :js
-    lib.url  = "http://code.jquery.com/jquery-1.10.2.min.js"
+    lib.url  = "http://code.jquery.com/jquery-1.11.1.min.js"
     lib.name = "jquery.js"
   end
 
@@ -153,13 +153,6 @@ libs = LibInstaller.define(self) do |installer|
     lib.type = :font
     lib.url  = "https://github.com/twbs/bootstrap/raw/v3.0.2/dist/fonts/glyphicons-halflings-regular.woff"
     lib.name = "glyphicons-halflings-regular.woff"
-  end
-
-  # rocketio
-  installer.add do |lib|
-    lib.type = :js
-    lib.url = "https://raw.github.com/shokai/sinatra-rocketio/master/rocketio.js"
-    lib.name = "rocketio.js"
   end
 end
 
