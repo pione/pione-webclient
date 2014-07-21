@@ -146,6 +146,18 @@ module Pione
         erb :workspace, :locals => {:jobs => jobs}
       end
 
+      # Return all jobs for the user as a JSON data
+      get '/workspace/jobs' do
+        jobs = user.find_jobs
+
+        { :id => job.id,
+          :desc => job.desc,
+          :ctime => job.ctime,
+          :mtime => job.mtime,
+          :status => job.status,
+        }.to_json
+      end
+
       #
       # job routes
       #
@@ -382,6 +394,11 @@ module Pione
 
           when "get"
             if data = manager.operation_get(job_id, interaction_id, path)
+              cgi_info = Util::CGIInfo.new
+              cgi_info.content_length = request.content_length
+              cgi_info.content_type = request.content_type
+              cgi_info.path_info = request.path_info
+
               file = Location[Temppath.mkdir] + path
               file.write(data)
               send_file(file.path.to_s)
