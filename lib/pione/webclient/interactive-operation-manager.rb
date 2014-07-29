@@ -130,8 +130,8 @@ module Pione
       end
 
       # Execute the operation 'get'.
-      def operation_get(job_id, interaction_id, path)
-        interactive_front(job_id, interaction_id).get(path)
+      def operation_get(job_id, interaction_id, path, cgi_info)
+        interactive_front(job_id, interaction_id).get(path, cgi_info)
       end
 
       # Execute the operation 'create'.

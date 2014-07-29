@@ -393,15 +393,52 @@ module Pione
             return 200, "The interaction has finished. Please go back to the job management page."
 
           when "get"
-            if data = manager.operation_get(job_id, interaction_id, path)
-              cgi_info = Util::CGIInfo.new
-              cgi_info.content_length = request.content_length
-              cgi_info.content_type = request.content_type
-              cgi_info.path_info = request.path_info
+            cgi_info = Util::CGIInfo.new
 
-              file = Location[Temppath.mkdir] + path
-              file.write(data)
-              send_file(file.path.to_s)
+            # meta-variables
+            cgi_info.auth_type = env['AUTH_TYPE']
+            cgi_info.content_length = request.content_length
+            cgi_info.content_type = request.content_type
+            cgi_info.path_info = env['PATH_INFO']
+            cgi_info.query_string = env['QUERY_STRING']
+            cgi_info.remote_addr = env['REMOTE_ADDR']
+            cgi_info.remote_host = env['REMOTE_HOST']
+            cgi_info.remote_ident = env['REMOTE_IDENT']
+            cgi_info.remote_user = user.name
+            cgi_info.request_method = env['REQUEST_METHOD']
+            cgi_info.script_name = env['SCRIPT_NAME']
+            cgi_info.server_name = env['SERVER_NAME']
+            cgi_info.server_port = env['SERVER_PORT']
+            cgi_info.server_protocol = env['SERVER_PROTOCOL']
+
+            # http sepcific variables
+            env.each do |key, val|
+              if key.start_with?("HTTP_")
+                cgi_info.http_header[key] = val
+              end
+            end
+
+            # body
+            request.body.rewind
+            cgi_info.body = request.body.read
+
+            if data = manager.operation_get(job_id, interaction_id, path, cgi_info)
+              if data.kind_of?(Util::CGIResponse)
+                if data.nph?
+                  # how?
+                else
+                  if not(data.location.nil?)
+                    redirect data.location
+                  else
+                    content_type data.content_type
+                    return data.status_code, data.body
+                  end
+                end
+              else
+                file = Location[Temppath.mkdir] + path
+                file.write(data)
+                send_file(file.path.to_s)
+              end
             else
               return 404, "file not found"
             end
