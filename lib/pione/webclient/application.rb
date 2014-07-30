@@ -389,8 +389,13 @@ module Pione
         if params["pione-action"]
           case params["pione-action"]
           when "finish"
-            manager.operation_finish(job_id, interaction_id, params["pione-result"] || "")
-            return 200, "The interaction has finished. Please go back to the job management page."
+            status = params["pione-status"] || "success"
+            if status == "success" or status == "failure"
+              manager.operation_finish(job_id, interaction_id, params["pione-result"] || "", status)
+              return 200, "The interaction has finished. Please go back to the job management page."
+            else
+              return 400, ("\"%s\" is bad status." % status)
+            end
 
           when "get"
             cgi_info = Util::CGIInfo.new
@@ -469,7 +474,14 @@ module Pione
             end
 
           when "list"
-            list = manager.operation_list(job_id, interaction_id, path)
+            show_all = params["pione-show-all"] || "false"
+            if show_all == "true" || show_all == "false"
+              show_all = show_all == "true"
+              list = manager.operation_list(job_id, interaction_id, path, show_all)
+            else
+              return 400, ('"%s" is invalid value for "pione-show-all"' % show_all)
+            end
+
             if list.nil?
               return 500, "The operation 'list' has failed."
             end

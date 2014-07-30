@@ -24,7 +24,7 @@ module Pione
 
         # run the request
         case type
-        when :page
+        when :browser
           # page rendering mode
           return Global.interactive_operation_manager.request_page(job_id, interaction_id, data)
         when :dialog

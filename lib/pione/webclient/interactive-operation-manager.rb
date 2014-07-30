@@ -117,8 +117,10 @@ module Pione
       #   interaction ID
       # @param [String] result
       #   result value
-      def operation_finish(job_id, interaction_id, result)
-        @result[key_of(job_id, interaction_id)] = result
+      # @param [String] status
+      #   result status, this should be "success" or "failure"
+      def operation_finish(job_id, interaction_id, result, status)
+        @result[key_of(job_id, interaction_id)] = [result, status]
         thread = @thread.delete(key_of(job_id, interaction_id))
         thread.wakeup
 
@@ -147,8 +149,8 @@ module Pione
       end
 
       # Execute the operation 'list'.
-      def operation_list(job_id, interaction_id, path)
-        interactive_front(job_id, interaction_id).list(path)
+      def operation_list(job_id, interaction_id, path, show_all)
+        interactive_front(job_id, interaction_id).list(path, show_all)
       end
 
       private
