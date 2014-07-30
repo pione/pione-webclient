@@ -6,6 +6,7 @@ require 'sinatra/rocketio'
 require "sinatra/multi_route"
 
 require 'pione'
+require 'pione/util/cgi'
 require 'pione/global/webclient-variable'
 require 'pione/log/webclient-message-log-receiver'
 require 'pione/front/webclient-front'

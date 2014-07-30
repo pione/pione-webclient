@@ -379,17 +379,17 @@ module Pione
         manager = Global.interactive_operation_manager
 
         # default action is get
-        params[:action] ||= "get"
+        params["pione-action"] ||= "get"
 
         # check the interaction
         unless manager.known?(job_id, interaction_id)
           return 404, "No such interaction exists."
         end
 
-        if params[:action]
-          case params[:action]
+        if params["pione-action"]
+          case params["pione-action"]
           when "finish"
-            manager.operation_finish(job_id, interaction_id, params[:result] || "")
+            manager.operation_finish(job_id, interaction_id, params["pione-result"] || "")
             return 200, "The interaction has finished. Please go back to the job management page."
 
           when "get"
@@ -402,11 +402,11 @@ module Pione
             cgi_info.path_info = env['PATH_INFO']
             cgi_info.query_string = env['QUERY_STRING']
             cgi_info.remote_addr = env['REMOTE_ADDR']
-            cgi_info.remote_host = env['REMOTE_HOST']
+            cgi_info.remote_host = env['REMOTE_HOST'] || env['REMOTE_ADDR']
             cgi_info.remote_ident = env['REMOTE_IDENT']
             cgi_info.remote_user = user.name
             cgi_info.request_method = env['REQUEST_METHOD']
-            cgi_info.script_name = env['SCRIPT_NAME']
+            cgi_info.script_name = request.script_name
             cgi_info.server_name = env['SERVER_NAME']
             cgi_info.server_port = env['SERVER_PORT']
             cgi_info.server_protocol = env['SERVER_PROTOCOL']
@@ -414,7 +414,7 @@ module Pione
             # http sepcific variables
             env.each do |key, val|
               if key.start_with?("HTTP_")
-                cgi_info.http_header[key] = val
+                cgi_info.http_header[key.sub(/^HTTP_/, "")] = val
               end
             end
 
@@ -444,8 +444,15 @@ module Pione
             end
 
           when "create"
-            if params[:content]
-              if manager.operation_create(job_id, interaction_id, path, params[:content])
+            if params["pione-content"]
+              content = params["pione-content"]
+
+              # read the content if it is a file
+              if content.respond_to?(:has_key?) and content.has_key?(:tempfile)
+                content = params["pione-content"][:tempfile].read
+              end
+
+              if manager.operation_create(job_id, interaction_id, path, content)
                 return 200, "The operation 'create' has succeeded."
               else
                 return 500, "The operation 'create' has failed."
