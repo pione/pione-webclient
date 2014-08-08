@@ -1,12 +1,22 @@
 module Pione
   module Webclient
-    module ApplicationUtil
-      def logined?
-        not(session[:email].nil?)
+    module APIInterface
+      def define_operation_api(path, &b)
+        route(:get, :post, path, &b)
       end
 
-      def user
-        User.new(session[:email], Global.workspace_root)
+      def define_post_only_operation_api(path, &b)
+        route(:post, path, &b)
+      end
+    end
+
+    module ApplicationUtil
+      def logined?
+        not(session[:username].nil?)
+      end
+
+      def myself
+        User.new(session[:username], Global.workspace_root)
       end
 
       def workspace
@@ -30,6 +40,42 @@ module Pione
         else
           redirect default_path
         end
+      end
+
+      def create_job_data(job)
+        return {
+          id: job.id,
+          desc: job.desc,
+          ctime: job.ctime.iso8601,
+          mtime: job.mtime.iso8601,
+          ppg: job.ppg_filename,
+          inupts: job.find_inputs,
+          status: job.status,
+        }
+      end
+
+      def jobs_to_json(jobs)
+        jobs.map{|job| create_job_data(job)}.to_json
+      end
+
+      def job_to_json(job)
+        create_job_data(job).to_json
+      end
+
+      def create_file_data(location)
+        return {
+          filename: location.basename,
+          size: location.size,
+          mtime: location.mtime.iso8601,
+        }
+      end
+
+      def file_to_json(location)
+        create_file_data(location).to_json
+      end
+
+      def files_to_json(locations)
+        locations.map{|location| create_file_data(location)}.to_json
       end
     end
 
@@ -60,6 +106,8 @@ module Pione
         register Sinatra::Reloader
       end
 
+      register APIInterface
+
       # Go login page if the user is not logined.
       before do
         if request.path_info.start_with?("/job", "/workspace", "/admin", "/user", "/interactive")
@@ -83,55 +131,52 @@ module Pione
         not(logined?) ? apply_template(:login) : redirect('/workspace')
       end
 
-      # Process authentications.
-      post '/login' do
-        new_user = User.new(params[:email], Global.workspace_root)
-
-        if new_user.auth(params[:password])
-          session[:email] = params[:email]
-
-          go_back('/workspace')
-        else
-          session[:message] = "Login failed because of no such user or bad password."
-        end
-
-        redirect '/login'
-      end
-
       # Show signup page.
       get '/signup' do
         not(logined?) ? apply_template(:signup) : redirect('/workspace')
       end
 
-      # Process sign up.
-      post '/signup' do
-        new_user = User.new(params[:email], Global.workspace_root)
+      # Process authentications. This is operation API.
+      define_post_only_operation_api('/auth/login/:username') do
+        new_user = User.new(params[:username], Global.workspace_root)
 
-        if params[:password] != params[:confirmation]
-          session[:message] = "The password and confirmation are mismatched."
+        if new_user.auth(params[:password])
+          session[:username] = params[:username]
+
+          return 200, "You have logged in."
         else
-          unless new_user.exist?
-            # save user informations
-            new_user.set_password(params[:password])
+          return 403, "Login failed."
+        end
+      end
+
+      # Process sign up.
+      define_post_only_operation_api('/auth/signup/:username') do
+        new_user = User.new(params[:username], Global.workspace_root)
+
+        unless new_user.exist?
+          # save user informations
+          if new_user.set_password(params[:password])
+            # first user of this workspace is authorized as an administrator
             new_user.set_admin(workspace.find_users.size == 0)
             new_user.save
 
             # store the user informations to session
-            session[:email] = params[:email]
+            session[:username] = params[:username]
 
             # go to previous page
-            go_back('/workspace')
+            return 200, "You have signed up."
           else
-            session[:message] = "The account exists already."
+            return 404, "Bad password."
           end
+        else
+          session[:message] = "The account exists already."
+          return 403, "The user exists already."
         end
-
-        redirect '/signup'
       end
 
       # Logout the user.
-      get '/logout' do
-        session[:email] = nil
+      define_operation_api('/auth/logout') do
+        session[:username] = nil
         redirect '/login'
       end
 
@@ -141,143 +186,124 @@ module Pione
 
       # Show workspace page. This page should be not cached.
       get '/workspace' do
-        jobs = user.find_jobs
+        jobs = myself.find_jobs
 
         erb :workspace, :locals => {:jobs => jobs}
       end
 
       # Return all jobs for the user as a JSON data
-      get '/workspace/jobs' do
-        jobs = user.find_jobs
-
-        { :id => job.id,
-          :desc => job.desc,
-          :ctime => job.ctime,
-          :mtime => job.mtime,
-          :status => job.status,
-        }.to_json
-      end
-
-      #
-      # job routes
-      #
-
-      # Create a new job.
-      post '/job/create' do
-        user = User.new(session[:email], Global.workspace_root)
-        job = Job.new(user, nil)
-        job.desc = params[:job_desc]
-
-        unless job.exist?
-          job.save
+      define_operation_api('/workspace/jobs/:username') do
+        unless params[:username] == session[:username] and not(myself.admin?)
+          return 404, "Cannot get jobs because of permission."
         end
 
-        redirect '/job/manage/' + job.id
+        target_user = User.new(params[:username], Global.workspace_root)
+        return jobs_to_json(target_user.find_jobs)
       end
+
+      #
+      # user
+      #
+
+      define_operation_api('/user/delete/:username') do
+        user = User.new(params[:username], Global.workspace_root)
+
+        if user.exist? and (user.name == myself.name or myself.admin?)
+          user.delete
+          return 200, "The user has been deleted."
+        else
+          return 403, "Cannot delete the user."
+        end
+      end
+
+      #
+      # job
+      #
 
       # Show a job management page.
       get '/job/manage/:job_id' do
         job = workspace.find_job(params[:job_id])
 
-        # show management page
-        apply_template(:job, {:job => job})
-      end
-
-      get '/job/requestable/:job_id' do
-        job = workspace.find_job(params[:job_id])
-        job.requestable?.to_json
-      end
-
-      get '/job/sources/:job_id' do
-        job = Job.new(user, params[:job_id])
-
-        if job.exist?
-          if job.ppg_filename and ppg = job.ppg_file(job.ppg_filename)
-            return {
-              ppg: {
-                filename: ppg.basename,
-                size: ppg.size,
-                mtime: ppg.mtime.iso8601},
-              sources: job.find_sources.map{|filename|
-                source = job.source_file(filename)
-                { filename: filename,
-                  size: source.size,
-                  mtime: source.mtime.iso8601}}
-            }.to_json
-          else
-            return {
-              sources: job.find_sources.map{|filename|
-                source = job.source_file(filename)
-                { filename: filename,
-                  size: source.size,
-                  mtime: source.mtime.iso8601}}}.to_json
-          end
+        if job
+          # show management page
+          apply_template(:job, {:job => job})
         else
           return 404, "No such job found."
         end
       end
 
-      # Delete the job and go home.
-      get '/job/delete/:job_id' do
+      # Create a new job.
+      define_operation_api('/job/create') do
+        job = Job.new(myself, nil)
+        job.desc = params[:desc]
+
+        unless job.exist?
+          job.save
+          return job_to_json(Job.new(myself, job.id))
+        else
+          return 500, "The job exists already."
+        end
+      end
+
+      # Update description of the job.
+      define_operation_api('/job/set/desc/:job_id') do
+        job = workspace.find_job(params[:job_id])
+
+        if job.exist?
+          job.desc = params[:text]
+          job.save
+          return 200, "Job description has updated."
+        else
+          return 404, "No souch job found."
+        end
+      end
+
+      # Get the job informations.
+      define_operation_api('/job/info/:job_id') do
+        job = workspace.find_job(params[:job_id])
+        if job
+          return job_to_json(job)
+        else
+          return 404, "The job not found."
+        end
+      end
+
+      # Delete the job.
+      define_operation_api('/job/delete/:job_id') do
         job = workspace.find_job(params[:job_id])
 
         # delete the job if it exists
-        job.delete if job.exist?
-
-        # go workspace
-        redirect '/workspace'
-      end
-
-      post '/job/upload-by-file/:input_type/:job_id' do
-        job = workspace.find_job(params[:job_id])
-
-        filename = URI.unescape(params[:file][:filename])
-        filepath = params[:file][:tempfile].path
-
-        if job.exist?
-          case params[:input_type]
-          when "ppg"
-            job.upload_ppg_by_file(filename, filepath)
-          when "source"
-            job.upload_source_by_file(filename, filepath)
+        if job
+          if not(job.processing?)
+            job.delete
+            return 200, "The job has been deleted."
           else
-            return 404, "Unknown input type."
+            return 403, "Failed to delete the job because of the state 'processing'."
           end
-          return 200, "Uploaded."
-       else
-          return 404, "No such job found."
-        end
-      end
-
-      post '/job/upload-by-url/:job_id' do
-        job = workspace.find_job(params[:job_id])
-
-        if job.exist?
-          case params[:input_type]
-          when "ppg"
-            job.upload_ppg_by_url(params[:filename], params[:url])
-          when "source"
-            job.upload_source_by_url(params[:filename], params[:url])
-          else
-            return 404, "Unknown input type."
-          end
-          return 200, "Queued."
         else
           return 404, "No such job found."
         end
       end
 
-      get '/job/input/get/:job_id/:type/:filename' do
+      define_operation_api('/job/ppg/info/:job_id') do
         job = workspace.find_job(params[:job_id])
-        file = nil
 
-        if job.exist?
-          case params[:type]
-          when "ppg"
-            file = job.ppg_file(params[:filename])
-          when "source"
-            file = job.source_file(params[:filename])
+        if job
+          if job.ppg_filename and ppg = job.ppg_file(job.ppg_filename)
+            return file_to_json(ppg)
+          else
+            return 404, "No such file found."
           end
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      define_operation_api('/job/ppg/get/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          file = job.ppg_file(params[:filename])
 
           if file
             return send_file(file.path)
@@ -289,85 +315,298 @@ module Pione
         end
       end
 
-      get '/job/input/delete/:job_id/:type/:filename' do
-        job = workspace.find_job(params[:job_id])
-
-        if job.exist?
-          case params[:type]
-          when "ppg"
-            job.delete_ppg(params[:filename])
-          when "source"
-            job.delete_source(params[:filename])
-          else
-            return 404, "Unknown input type."
-          end
-          return 200, "The input file has deleted."
-        else
-          return 404, "No such job found."
-        end
-      end
-
-      get '/job/request/:job_id' do
+      define_operation_api('/job/ppg/delete/:job_id/:filename') do
         job = workspace.find_job(params[:job_id])
 
         if job
-          Global.job_queue.request(job)
-          return 200, "Request has been queued."
+          if not(job.processing?)
+            job.delete_ppg(params[:filename])
+            return 200, "The ppg file has deleted."
+          else
+            return 403, "Cannot delete the ppg file because the job is processing."
+          end
         else
           return 404, "No such job found."
         end
       end
 
-      get '/job/cancel/:job_id' do
+      # Upload a package or an input by file.
+      define_operation_api('/job/ppg/upload/file/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+
+        filename = params[:filename]
+        filepath = params[:file][:tempfile].path
+
+        if job
+          if not(job.processing?)
+            job.upload_ppg_by_file(filename, filepath)
+            return 200, "Uploaded."
+          else
+            return 403, "Cannot upload the file because the job is processing."
+          end
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      # Upload a package or an input by URL.
+      define_operation_api('/job/ppg/upload/url/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          if not(job.processing?)
+            job.upload_ppg_by_url(params[:filename], params[:url])
+            return 200, "Queued."
+          else
+            return 403, "Cannot upload the file because the job is processing."
+          end
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      define_operation_api('/job/inputs/:job_id') do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          return files_to_json(job.find_inputs)
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      define_operation_api('/job/input/info/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          if file = job.input_file(params[:filename])
+            return file_to_json(file)
+          else
+            return 404, "No such file found."
+          end
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      define_operation_api('/job/input/get/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          if file = job.input_file(params[:filename])
+            return send_file(file.path)
+          else
+            return 404, "The file doesn't exist."
+          end
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      define_operation_api('/job/input/delete/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          if not(job.processing?)
+            job.delete_input(params[:filename])
+            return 200, "The input file has deleted."
+          else
+            return 403, "Cannot delete the file because the job is processing."
+          end
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      # Upload a package or an input by file.
+      define_operation_api('/job/input/upload/file/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+
+        filename = params[:filename]
+        filepath = params[:file][:tempfile].path
+
+        if job
+          if not(job.processing?)
+            job.upload_input_by_file(filename, filepath)
+            return 200, "Uploaded."
+          else
+            return 403, "Cannot upload the file because the job is processing."
+          end
+       else
+          return 404, "No such job found."
+        end
+      end
+
+      # Upload an input by URL.
+      define_operation_api('/job/input/upload/url/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          if not(job.processing?)
+            job.upload_input_by_url(params[:filename], params[:url])
+            return 200, "Queued."
+          else
+            return 403, "Cannot upload the file because the job is processing."
+          end
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      define_operation_api('/job/start/:job_id') do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          if job.processable?
+            Global.job_queue.request(job)
+            return 200, "Request has been queued."
+          else
+            return 403, "The job is not processable."
+          end
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      define_operation_api('/job/stop/:job_id') do
         job = workspace.find_job(params[:job_id])
 
         if job
           if Global.job_queue.cancel(job)
             return 200, "The job has been canceled."
           else
-            return 404, "The job is not processing."
+            return 403, "The job is not processing."
           end
-        else
-          return 404, "No souch job found."
-        end
-      end
-
-      get '/job/clear/:job_id' do
-        job = workspace.find_job(params[:job_id])
-
-        if job
-          job.clear_base_location
-          return 200, "Request has been queued."
         else
           return 404, "No such job found."
         end
       end
 
-      # Send the job result zip file of the session.
-      get '/job/result/:job_id/:filename' do
+      define_operation_api('/job/clear/:job_id') do
         job = workspace.find_job(params[:job_id])
 
-        zip = job.result_location + params[:filename]
-
-        if job.exist? and zip.exist?
-          content_type "application/zip"
-          last_modified zip.mtime
-
-          send_file(zip.path.to_s)
+        if job
+          if not(job.processing?)
+            job.clear_base_location
+            return 200, "Request has been queued."
+          else
+            return 403, 'Cannot clear the base directory because of the job status "%s".' % job.status
+          end
         else
-          return 404, "No such results."
+          return 404, "No such job found."
         end
       end
 
-      post '/job/desc/:job_id' do
+      define_operation_api('/job/results/:job_id') do
         job = workspace.find_job(params[:job_id])
 
-        if job.exist?
-          job.desc = params[:text]
-          job.save
-          return 200, "Job description has updated."
+        if job
+          return files_to_json(job.find_results)
         else
-          return 404, "No souch job found."
+          return 404, "No such job found."
+        end
+      end
+
+      define_operation_api('/job/result/info/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          if result = result_file(params[:filename])
+            return result_to_json(result)
+          else
+            return 404, "No such result."
+          end
+        else
+          return 404, "No such result."
+        end
+      end
+
+      # Send the job result zip file of the session.
+      define_operation_api('/job/result/get/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+        result = job.result_location + params[:filename]
+
+        if job.exist? and result.exist?
+          content_type "application/zip"
+          last_modified result.mtime
+
+          send_file(result.path.to_s)
+        else
+          return 404, "No such result."
+        end
+      end
+
+      # Send the job result zip file of the session.
+      define_operation_api('/job/result/delete/:job_id/:filename') do
+        job = workspace.find_job(params[:job_id])
+        result = job.result_location + params[:filename]
+
+        if job.exist? and result.exist?
+          result.delete
+          return 200, "The result file has been deleted."
+        else
+          return 404, "No such result."
+        end
+      end
+
+      #
+      # Admin
+      #
+
+      # Show administration page.
+      get '/admin' do
+        apply_template(:admin, users: workspace.find_users)
+      end
+
+      # Set the configuration.
+      define_operation_api('/admin/conf') do
+        if myself.admin?
+          current_workspace = workspace
+          current_workspace.title = params[:workspace_title]
+          current_workspace.save
+        else
+          return 404, "Cannot configure the workspace because you are not administrator."
+        end
+      end
+
+      define_operation_api('/admin/add/:username') do
+        if myself.admin?
+          user = User.new(params[:username], Global.workspace_root)
+
+          if user.exist?
+            user.admin = true
+            user.save
+            return 200, "The user is authorized as an administrator."
+          else
+            return 404, "No such user found."
+          end
+        else
+          return 403, "Cannot do it because you are not administrator."
+        end
+      end
+
+      define_operation_api('/admin/delete/:username') do
+        if myself.admin?
+          if user.exist?
+            user.admin = false
+            user.save
+            return 200, "The user is deleted the authority of administrator."
+          else
+            return 404, "No such user found."
+          end
+        else
+          return 403, "Cannot do it because you are not administrator."
+        end
+      end
+
+      define_operation_api('/admin/shutdown') do
+        if myself.admin?
+          Global.io.push(:status, "SHUTDOWN")
+          sleep 5
+          puts "!!! PIONE Webclient shutdowned !!!"
+          exit!
+        else
+          return 403, "Cannot do it because you are not administrator."
         end
       end
 
@@ -496,39 +735,6 @@ module Pione
             return 400, "This operation is invalid."
           end
         end
-      end
-
-      #
-      # Admin
-      #
-
-      # Show administration page.
-      get '/admin' do
-        apply_template(:admin, users: workspace.find_users)
-      end
-
-      # Set the configuration.
-      post '/admin/conf' do
-        current_workspace = workspace
-        current_workspace.title = params[:workspace_title]
-        current_workspace.save
-        redirect '/admin'
-      end
-
-      # Delete the user.
-      get '/admin/user/delete/:user_name' do
-        if user.exist?
-          user.delete
-        end
-
-        redirect '/admin'
-      end
-
-      get '/admin/shutdown' do
-        Global.io.push(:status, "SHUTDOWN")
-        sleep 5
-        puts "!!! PIONE Webclient shutdowned !!!"
-        exit!
       end
 
       #

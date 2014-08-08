@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title><%= job.desc || job.id %> - PIONE Webclient</title>
+    <title>Job: <%= job.desc || job.id %> - PIONE Webclient</title>
 
 <%= erb :css %>
   </head>
@@ -24,11 +24,11 @@
 
     <!-- Source Panel -->
     <section id="source">
-      <h2>Select a PIONE Package and Source Files</h2>
+      <h2>Select PIONE Package and Input Files</h2>
       <div id="source-panel" class="panel panel-default">
 	<div class="panel-body">
 	  <h3>PIONE Package</h3>
-	  <!-- buttons for selecting a source PPG file -->
+	  <!-- buttons for selecting a PPG file -->
 	  <div>
 	    <input type="dropbox-chooser" name="selected-file" id="source-ppg-chooser" style="visibility: hidden;"
 		   data-link-type="direct" data-extensions=".ppg" /> or
@@ -48,7 +48,7 @@
 	  </table>
 
 	  <h3>Input Files</h3>
-	  <!-- buttons for selecting source data files -->
+	  <!-- buttons for selecting input files -->
 	  <div>
 	    <input type="dropbox-chooser" name="selected-file" id="source-files-chooser" style="visibility: hidden;"
 		   data-link-type="direct" data-multiselect="true" /> or
@@ -63,7 +63,7 @@
 	    <thead>
 	      <tr><th>Name</th><th>Size</th><th>Last Modified</th><th>Op</th></tr>
 	    </thead>
-	    <tbody id="sources">
+	    <tbody id="inputs">
 	    </tbody>
 	  </table>
 	</div>
@@ -74,10 +74,10 @@
     <section id="operation">
       <h2>Operations</h2>
       <div class="btn-group btn-group-justified">
-	<a class="btn btn-lg btn-default disabled" id="request">
+	<a class="btn btn-lg btn-default disabled" id="start">
 	  <span class="glyphicon glyphicon-play"></span> Start
 	</a>
-	<a class="btn btn-lg btn-default disabled" id="cancel">
+	<a class="btn btn-lg btn-default disabled" id="stop">
 	  <span class="glyphicon glyphicon-stop"></span> Stop
 	</a>
 	<a class="btn btn-lg btn-default" id="clear">
@@ -116,15 +116,18 @@
       </div>
     </section>
 
-    <!-- Target -->
-    <section id="target">
-      <h2>Save the Target Zip</h2>
+    <!-- Results -->
+    <section id="result-file-section">
+      <h2>Result Files</h2>
       <div class="panel pane-default">
 	<div class="panel-body">
-	  <a href="pione-logo.png" class="dropbox-saver" data-filename="result.zip" id="target-saver"></a> or
-	  <a href="pione-logo.png" class="btn btn-xs btn-default" id="target-download">
-	    <span class="glyphicon glyphicon-download"></span> Direct Download
-	  </a>
+	  <table class="table table-hover">
+	    <thead>
+	      <tr><th>Name</th><th>Size</th><th>Last Modified</th><th>Op</th></tr>
+	    </thead>
+	    <tbody id="results">
+	    </tbody>
+	  </table>
 	</div>
       </div>
     </section>
@@ -157,9 +160,7 @@
     <!-- ------------------------------------------------------------ -->
 <%= erb :jslibs %>
     <script type="text/javascript">
-      PioneWebclient.mode = "job_operation";
-      PioneWebclient.setJobId("<%= job.id %>");
+      PioneWebclient.Job.init("<%= job.id %>");
     </script>
   </body>
 </html>
-

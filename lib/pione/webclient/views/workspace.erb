@@ -16,9 +16,9 @@
       <h2>New Job</h2>
       <div class="panel panel-default">
 	<div class="panel-body">
-	  <form class="form-inline" action="/job/create" method="post" role="form">
+	  <form class="form-inline" id="form-new-job" role="form">
 	    <div class="form-group">
-	      <input type="text" class="form-control" name="job_desc" placeholder="description"/>
+	      <input type="text" class="form-control" id="new-job-desc" placeholder="description"/>
 	    </div>
 	    <button class="btn btn-default">Create a new job</button>
 	  </form>
@@ -42,18 +42,7 @@
 		<th>operation</th>
 	      </tr>
 	    </thead>
-	    <tbody>
-	      <% jobs.each do |job| %>
-	      <tr>
-		<td><a href="/job/manage/<%= job.id %>"><%= job.id %></a></td>
-		<td><a href="/job/manage/<%= job.id %>"><%= job.desc %></a></td>
-		<td><%= job.ctime ? job.ctime.iso8601 : "" %></td>
-		<td><%= job.mtime ? job.mtime.iso8601 : "" %></td>
-		<td><%= job.status %></td>
-		<td><a href="/job/delete/<%= job.id %>">delete</a>
-	      </tr>
-	      <% end %>
-	    </tbody>
+	    <tbody id="job-list-table-body"/>
 	  </table>
 	</div>
       </div>
@@ -68,6 +57,9 @@
     <!-- JS                                                           -->
     <!-- ------------------------------------------------------------ -->
 <%= erb :jslibs %>
+    <script type="text/javascript">
+      PioneWebclient.Workspace.init("<%= myself.name %>");
+    </script>
   </body>
 </html>
 

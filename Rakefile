@@ -154,6 +154,13 @@ libs = LibInstaller.define(self) do |installer|
     lib.url  = "https://github.com/twbs/bootstrap/raw/v3.0.2/dist/fonts/glyphicons-halflings-regular.woff"
     lib.name = "glyphicons-halflings-regular.woff"
   end
+
+  # CryptJS
+  installer.add do |lib|
+    lib.type = :js
+    lib.url = "http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/sha512.js"
+    lib.name = "sha512.js"
+  end
 end
 
 desc "Download javascript libraries"

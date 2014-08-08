@@ -4,6 +4,7 @@ module Pione
       USERINFO_FILENAME = "user-info.yml"
 
       attr_reader :name
+      attr_writer :admin
 
       # @param [String] name
       #   user name
@@ -37,9 +38,8 @@ module Pione
       # @return [Boolean]
       #   true if the password is valid
       def auth(password)
-        return false unless exist?
-
-        @password == password_digest(password)
+        password = password.downcase
+        exist? and validate_password_format(password) and @password == password
       end
 
       # Delete the user. This deletes all of files in user directory.
@@ -48,8 +48,15 @@ module Pione
         userdir.delete
       end
 
+      # Set the password. Return true if the password's format is valid.
       def set_password(password)
-        @password = password_digest(password)
+        password = password.downcase
+        if validate_password_format(password)
+          @password = password
+          return true
+        else
+          return false
+        end
       end
 
       def set_admin(flag)
@@ -109,8 +116,16 @@ module Pione
         @mtime = Timestamp.parse(data[:mtime])
       end
 
-      def password_digest(password)
-        Digest::SHA512.hexdigest(@name + password).to_s
+      # Check the password is valid or invalid. The password should be a SHA512
+      # HEX digest of string that is sequence of user name, ':', real password.
+      def validate_password_format(password)
+        /^[0-9a-f]{128}$/ === password
+      end
+    end
+
+    class UserError < StandardError
+      def self.invalid_password_format
+        UserError.new("The password is invalid.")
       end
     end
   end

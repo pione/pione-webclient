@@ -9,9 +9,9 @@
 	  <li><a href="/workspace">Workspace</a></li>
 	</ul>
 	<ul class="nav navbar-nav navbar-right">
-	  <li><a href="/logout">Logout</a></li>
+	  <li><a href="#" id="nav-logout">Logout</a></li>
 	</ul>
-	<% if user.admin? %>
+	<% if myself.admin? %>
 	  <ul class="nav navbar-nav navbar-right">
 	    <li><a href="/admin">Admin</a></li>
 	  </ul>
