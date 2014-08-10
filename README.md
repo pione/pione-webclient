@@ -8,7 +8,7 @@ PIONE webclient is a web frontend for PIONE.
 wget -q -O - https://raw.githubusercontent.com/pione/pione-webclient/master/install.sh | sh
 ```
 
-## RUn
+## Run
 
 ```
 cd pione-webclient
