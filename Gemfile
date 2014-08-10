@@ -2,7 +2,7 @@
 # -*- encoding: utf-8 -*-
 
 source "https://rubygems.org"
-gem 'pione', :git => 'https://github.com/pione/pione.git', :branch => 'for_updating_webclient'
+gem 'pione', :git => 'https://github.com/pione/pione.git', :branch => 'master'
 gem 'structx', '~> 0.1.3'
 gem 'sinatra', '~> 1.4.4'
 gem 'sinatra-contrib', '~> 1.4.1'
