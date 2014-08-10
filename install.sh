@@ -52,8 +52,10 @@ cat <<EOF
 Note for Drop-ins API
 ---------------------
 
-PIONE Webclient needs Drop-ins app key in production environment. If you don't
-have it, you can get from "https://www.dropbox.com/developers/apps".
+PIONE Webclient enables to handle Drop-ins API for uploading input files from
+and downloading result files to Dropbox. If you want to use Drop-ins's function,
+you needs Drop-ins app key in production environment. If you don't have it, you
+can get from "https://www.dropbox.com/developers/apps".
 
 ### How to setup Drop-ins app key
 
@@ -64,7 +66,7 @@ How to Start
 
 ### with development environment
 
-    % bundle exec foreman start -f misc/Procfile
+    % bundle exec foreman start
 
 ### with production environment
 
