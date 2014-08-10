@@ -3,7 +3,9 @@ module Pione
     class Workspace
       WORKSPACE_INFO_FILENAME = "workspace-info.yml"
 
+      attr_reader :dir
       attr_accessor :title
+      attr_reader :admins
 
       # @param [Location] dir
       #   the location of workspace directory.
@@ -12,6 +14,7 @@ module Pione
         @title = nil
         @ctime = nil
         @mtime = nil
+        @admins = []
 
         if exist?
           load
@@ -56,7 +59,7 @@ module Pione
         if @dir.exist?
           return @dir.entries.each_with_object([]) do |entry, users|
             user_name = entry.basename
-            user = User.new(user_name, @dir)
+            user = User.new(user_name, self)
             if user.exist?
               users << user
             end
@@ -66,6 +69,14 @@ module Pione
         end
       end
 
+      def admin?(user_name)
+        @admins.include?(user_name)
+      end
+
+      def exist_admins?
+        @admins.size > 0
+      end
+
       # Save workspace informations.
       def save
         now = Time.now
@@ -73,6 +84,7 @@ module Pione
           :title => @title,
           :ctime => Timestamp.dump(@ctime) || Timestamp.dump(now),
           :mtime => Timestamp.dump(now),
+          :admins => @admins
         }
         workspace_info.write(YAML.dump(data))
       end
@@ -83,6 +95,7 @@ module Pione
         @title = data[:title]
         @ctime = Timestamp.parse(data[:ctime])
         @mtime = Timestamp.parse(data[:mtime])
+        @admins = data[:admins]
       end
 
       # Return the location of workspace information file.

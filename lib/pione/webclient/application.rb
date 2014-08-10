@@ -15,12 +15,16 @@ module Pione
         not(session[:username].nil?)
       end
 
+      def encodeURI(str)
+        URI.encode_www_form_component(str)
+      end
+
       def myself
-        User.new(session[:username], Global.workspace_root)
+        User.new(session[:username], workspace)
       end
 
       def workspace
-        Workspace.new(Global.workspace_root)
+        @__workspace__ ||= Workspace.new(Global.workspace_root)
       end
 
       def apply_template(name, locals={})
@@ -77,6 +81,23 @@ module Pione
       def files_to_json(locations)
         locations.map{|location| create_file_data(location)}.to_json
       end
+
+      def create_user_data(user)
+        return {
+          name: user.name,
+          ctime: user.ctime,
+          mtime: user.mtime,
+          admin: user.admin?
+        }
+      end
+
+      def user_to_json(user)
+        create_user_data(user).to_json
+      end
+
+      def users_to_json(users)
+        users.map{|user| create_user_data(user)}.to_json
+      end
     end
 
     module ViewUtil
@@ -108,18 +129,33 @@ module Pione
 
       register APIInterface
 
+      PROTECTED_PAGES = [
+        "/page/job",
+        "/page/workspace",
+        "/page/admin",
+        "/job",
+        "/workspace",
+        "/admin",
+        "/user",
+        "/interactive",
+      ]
+
       # Go login page if the user is not logined.
       before do
-        if request.path_info.start_with?("/job", "/workspace", "/admin", "/user", "/interactive")
+        if request.path_info.start_with?(*PROTECTED_PAGES)
           unless logined?
             save_referer
-            redirect '/login'
+            redirect '/page/login'
           end
         end
       end
 
       get '/' do
-        redirect '/workspace'
+        if logined?
+          redirect '/page/workspace/' + encodeURI(myself.name)
+        else
+          redirect '/page/login'
+        end
       end
 
       #
@@ -127,18 +163,18 @@ module Pione
       #
 
       # Show login page.
-      get '/login' do
-        not(logined?) ? apply_template(:login) : redirect('/workspace')
+      get '/page/login' do
+        not(logined?) ? apply_template(:login) : redirect('/page/workspace' + encodeURI(myself.name))
       end
 
       # Show signup page.
-      get '/signup' do
-        not(logined?) ? apply_template(:signup) : redirect('/workspace')
+      get '/page/signup' do
+        not(logined?) ? apply_template(:signup) : redirect('/page/workspace')
       end
 
       # Process authentications. This is operation API.
       define_post_only_operation_api('/auth/login/:username') do
-        new_user = User.new(params[:username], Global.workspace_root)
+        new_user = User.new(params[:username], workspace)
 
         if new_user.auth(params[:password])
           session[:username] = params[:username]
@@ -151,14 +187,18 @@ module Pione
 
       # Process sign up.
       define_post_only_operation_api('/auth/signup/:username') do
-        new_user = User.new(params[:username], Global.workspace_root)
+        new_user = User.new(params[:username], workspace)
 
         unless new_user.exist?
           # save user informations
           if new_user.set_password(params[:password])
-            # first user of this workspace is authorized as an administrator
-            new_user.set_admin(workspace.find_users.size == 0)
             new_user.save
+
+            # first user of this workspace is authorized as an administrator
+            unless workspace.admins.size > 0
+              workspace.admins << new_user.name
+              workspace.save
+            end
 
             # store the user informations to session
             session[:username] = params[:username]
@@ -177,7 +217,7 @@ module Pione
       # Logout the user.
       define_operation_api('/auth/logout') do
         session[:username] = nil
-        redirect '/login'
+        redirect '/page/login'
       end
 
       #
@@ -185,20 +225,47 @@ module Pione
       #
 
       # Show workspace page. This page should be not cached.
-      get '/workspace' do
-        jobs = myself.find_jobs
-
-        erb :workspace, :locals => {:jobs => jobs}
+      get '/page/workspace/:username' do
+        user = User.new(params[:username], workspace)
+        if myself.name == user.name or myself.admin?
+          erb :workspace, :locals => {:user => user}
+        else
+          return 403, "Cannot show workspace of the user because of your permission."
+        end
       end
 
-      # Return all jobs for the user as a JSON data
-      define_operation_api('/workspace/jobs/:username') do
-        unless params[:username] == session[:username] and not(myself.admin?)
-          return 404, "Cannot get jobs because of permission."
+      # Set title of the workspace.
+      define_operation_api('/workspace/title/set') do
+        if myself.admin?
+          if params[:text]
+            workspace.title = params[:text]
+            workspace.save
+            return 200, "Workspace title has been updated."
+          else
+            return 403, "Workspace title is required."
+          end
+        else
+          return 403, "Cannot update because of your permission."
         end
+      end
 
-        target_user = User.new(params[:username], Global.workspace_root)
-        return jobs_to_json(target_user.find_jobs)
+      # Return all users as a JSON data.
+      define_operation_api('/workspace/users/info') do
+        if myself.admin?
+          return users_to_json(workspace.find_users)
+        else
+          return 403, "Cannot get user informations because of your permission."
+        end
+      end
+
+      # Return all jobs for the user as a JSON data.
+      define_operation_api('/workspace/jobs/info/:username') do
+        if params[:username] == myself.name or myself.admin?
+          target_user = User.new(params[:username], workspace)
+          return jobs_to_json(target_user.find_jobs)
+        else
+          return 403, "Cannot get job informations because of your permission."
+        end
       end
 
       #
@@ -206,7 +273,7 @@ module Pione
       #
 
       define_operation_api('/user/delete/:username') do
-        user = User.new(params[:username], Global.workspace_root)
+        user = User.new(params[:username], workspace)
 
         if user.exist? and (user.name == myself.name or myself.admin?)
           user.delete
@@ -221,7 +288,7 @@ module Pione
       #
 
       # Show a job management page.
-      get '/job/manage/:job_id' do
+      get '/page/job/:job_id' do
         job = workspace.find_job(params[:job_id])
 
         if job
@@ -246,7 +313,7 @@ module Pione
       end
 
       # Update description of the job.
-      define_operation_api('/job/set/desc/:job_id') do
+      define_operation_api('/job/desc/set/:job_id') do
         job = workspace.find_job(params[:job_id])
 
         if job.exist?
@@ -365,11 +432,54 @@ module Pione
         end
       end
 
-      define_operation_api('/job/inputs/:job_id') do
+      define_operation_api('/job/inputs/info/:job_id') do
         job = workspace.find_job(params[:job_id])
 
         if job
           return files_to_json(job.find_inputs)
+        else
+          return 404, "No such job found."
+        end
+      end
+
+      define_operation_api('/job/inputs/upload/result/:job_id') do
+        job = workspace.find_job(params[:job_id])
+
+        if job
+          if params[:url]
+            uri = URI.parse(params[:url])
+
+            if uri.host.downcase == request.host.downcase and uri.port.to_s == request.port.to_s
+              if md = %r{^/job/result/get/([0-9a-f-]+)/([^/]+)$}.match(uri.path)
+                result_job_id = md[1]
+                result_filename = md[2]
+                if _job = workspace.find_job(result_job_id)
+                  zip = _job.result_file(result_filename)
+                else
+                  return 404, "No such job found."
+                end
+              else
+                return 403, "Bad URL."
+              end
+            else
+              zip = Location[params[:url]]
+            end
+
+            dir = Location[Temppath.mkdir]
+            Util::Zip.uncompress(zip, dir)
+            if (dir + "output").exist?
+              (dir + "output").entries.each do |entry|
+                if entry.file?
+                  entry.copy(job.input_location + entry.basename)
+                end
+              end
+              return 200, "Input files are uploaded from the result zip file."
+            else
+              return 403, "Bad result file."
+            end
+          else
+            return 403, "URL is required."
+          end
         else
           return 404, "No such job found."
         end
@@ -497,7 +607,7 @@ module Pione
         end
       end
 
-      define_operation_api('/job/results/:job_id') do
+      define_operation_api('/job/results/info/:job_id') do
         job = workspace.find_job(params[:job_id])
 
         if job
@@ -554,24 +664,17 @@ module Pione
       #
 
       # Show administration page.
-      get '/admin' do
-        apply_template(:admin, users: workspace.find_users)
-      end
-
-      # Set the configuration.
-      define_operation_api('/admin/conf') do
+      get '/page/admin' do
         if myself.admin?
-          current_workspace = workspace
-          current_workspace.title = params[:workspace_title]
-          current_workspace.save
+          apply_template(:admin)
         else
-          return 404, "Cannot configure the workspace because you are not administrator."
+          return 403, "Cannot access the page for your permission."
         end
       end
 
       define_operation_api('/admin/add/:username') do
         if myself.admin?
-          user = User.new(params[:username], Global.workspace_root)
+          user = User.new(params[:username], workspace)
 
           if user.exist?
             user.admin = true
@@ -648,7 +751,7 @@ module Pione
             cgi_info.remote_addr = env['REMOTE_ADDR']
             cgi_info.remote_host = env['REMOTE_HOST'] || env['REMOTE_ADDR']
             cgi_info.remote_ident = env['REMOTE_IDENT']
-            cgi_info.remote_user = user.name
+            cgi_info.remote_user = myself.name
             cgi_info.request_method = env['REQUEST_METHOD']
             cgi_info.script_name = request.script_name
             cgi_info.server_name = env['SERVER_NAME']

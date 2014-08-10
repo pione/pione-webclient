@@ -13,6 +13,6 @@
     };
 
     Nav.logout = function () {
-	$.get("/auth/logout", function () {location.href = "/login"});
+	$.get("/auth/logout", function () {location.href = "/page/login"});
     };
 }());

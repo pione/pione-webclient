@@ -10,26 +10,16 @@
 <%= erb :header %>
 <%= erb :navigation_bar %>
 
-   <section id="conf">
-     <h2>Configuration</h2>
-     <div class="panel panel-default">
-	<div class="panel-body">
-	  <form class="form-horizontal" action="/admin/conf" method="post">
-	    <fieldset>
-	      <div class="control-group">
-		<label class="control-label" for="workspace_title">Title</label>
-		<div class="controls">
-		  <input type="text" class="input-xlarge" id="workspace_title" name="workspace_title" value="<%= workspace.title %>" required/>
-		</div>
-	      </div>
-	      <div class="form-actions">
-		<button type="submit" class="btn btn-primary">submit</button>
-	      </div>
-	    </fieldset>
-	  </form>
+    <section>
+      <form class="form-inline" role="form">
+	<div class="form-group">
+	  <div class="input-group">
+	    <div class="input-group-addon">Workspace Title</div>
+	    <input class="form-control" id="workspace-title" type="text" value="<%= workspace.title %>" />
+	  </div>
 	</div>
-     </div>
-   </section>
+      </form>
+    </section>
 
     <!-- User List -->
     <section id="user-list">
@@ -40,23 +30,13 @@
 	    <thead>
 	      <tr>
 		<th>name</th>
+		<th>ctime</th>
+		<th>mtime</th>
+		<th>admin?</th>
 		<th>delete</th>
 	      </tr>
 	    </thead>
-	    <tbody>
-	      <% users.each do |user| %>
-	      <tr>
-		<td><%= user.name %></td>
-		<td>
-		  <a href="/user/delete/<%= user.name %>">
-		    <button type="button" class="btn btn-default btn-xs">
-		    <span class="glyphicon glyphicon-remove"></span>
-		    </button>
-		  </a>
-		</td>
-	      </tr>
-	      <% end %>
-	    </tbody>
+	    <tbody id="users-table-body"/>
 	  </table>
 	</div>
       </div>
@@ -68,5 +48,8 @@
     <!-- JS                                                           -->
     <!-- ------------------------------------------------------------ -->
 <%= erb :jslibs %>
+    <script type="text/javascript">
+      PioneWebclient.Admin.init();
+    </script>
   </body>
 </html>

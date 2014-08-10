@@ -4,17 +4,17 @@ module Pione
       USERINFO_FILENAME = "user-info.yml"
 
       attr_reader :name
-      attr_writer :admin
+      attr_reader :ctime
+      attr_reader :mtime
 
       # @param [String] name
       #   user name
-      # @param [Location] workspace_root
-      #   workspace root directory
-      def initialize(name, workspace_root)
+      # @param [Workspace] workspace
+      #   workspace object
+      def initialize(name, workspace)
         @name = name
-        @workspace_root = workspace_root
+        @workspace = workspace
         @password = nil
-        @admin = false
         @ctime = nil
         @mtime = nil
 
@@ -29,7 +29,7 @@ module Pione
       end
 
       def admin?
-        @admin
+        @workspace.admin?(@name)
       end
 
       # Return true if the password is valid.
@@ -59,10 +59,6 @@ module Pione
         end
       end
 
-      def set_admin(flag)
-        @admin = flag
-      end
-
       # Save the user's information.
       # @return [void]
       def save
@@ -71,7 +67,6 @@ module Pione
         data = {
           :name => @name,
           :password => @password,
-          :admin => @admin,
           :ctime => Timestamp.dump(@ctime) || Timestamp.dump(now),
           :mtime => Timestamp.dump(now),
         }
@@ -83,7 +78,7 @@ module Pione
       #   the location of user directory
       def dir
         # TODO: escape user name
-        @workspace_root + @name
+        @workspace.dir + @name
       end
 
       # Return the location of user information file.
@@ -111,7 +106,6 @@ module Pione
       def load_from_userinfo
         data = YAML.load(userinfo.read)
         @password = data[:password]
-        @admin = data[:admin]
         @ctime = Timestamp.parse(data[:ctime])
         @mtime = Timestamp.parse(data[:mtime])
       end

@@ -105,9 +105,11 @@ module Pione
           while (job = @queue.pop) do
             if job.exist?
               # process the request
-              if process(job)
-                make_result_archive(job)
-              end
+              result_type = process(job)
+              archive_result(job, result_type)
+
+              # push status message
+              update_status(job.id, name: "COMPLETED")
             end
 
             # remove the request
@@ -120,10 +122,11 @@ module Pione
       #
       # @param req [Webclient::Request]
       #   processing request
-      # @return [void]
+      # @return [Symbol]
+      #   :succeeded or :failed
       def process(job)
         # push status message
-        update_status(job.id, name: "START_PROCESSING") if active?(job.id)
+        update_status(job.id, name: "PROCESSING") if active?(job.id)
 
         # spawn `pione-client`
         spawner = spawn_pione_client(job)
@@ -136,22 +139,17 @@ module Pione
           # check the process result
           if status.kind_of?(Process::Status) and not(status.success?)
             update_status(job.id, name: "PROCESS_ERROR") if active?(job.id)
-            return false
+            return :failed
           end
         end
 
-        # process killed if the request is not active
-        return false unless active?(job.id)
-
-        # push status message
-        update_status(job.id, name: "END_PROCESSING")
-
-        return true
+        return :succeeded
       rescue Object => e
         msg = "An error has raised when pione-webclient was processing a job for %s : %s"
         msg = msg % [job.id, e.message]
         Log::SystemLog.error(msg)
         update_status(job.id, name: "PROCESS_ERROR")
+        return :failed
       ensure
         @pid.delete(job.id)
       end
@@ -168,7 +166,7 @@ module Pione
         if job.input_location.exist?
           spawner.option("--input", job.input_location.address)
         end
-        spawner.option("--output", job.base_location.address)
+        spawner.option("--base", job.base_location.address)
         spawner.option("--parent-front", @model[:front].uri)
         # if Global.presence_notification_addresses
         #   Global.presence_notification_addresses.each do |address|
@@ -189,7 +187,31 @@ module Pione
         spawner.spawn
       end
 
-      def make_result_archive(job)
+      def archive_result(job, result_type)
+        # push status message
+        update_status(job.id, name: "ARCHIVING")
+
+        # make xes logs
+        if result_type == :succeeded
+          make_xes_logs(job)
+        end
+
+        # make the result zip file
+        uuid = Util::UUID.generate
+        filename = generate_result_filename(result_type)
+        job.make_zip(filename)
+        Global.io.push(:result, {job_id: job.id, filename: filename}, :to => @websocket_manager.find(job.id))
+      end
+
+      def generate_result_filename(result_type)
+        if result_type == :succeeded
+          return Time.now.strftime("pione-%Y%m%d%H%M%S.zip")
+        else
+          return Time.now.strftime("pione-" + result_type.to_s + "-%Y%m%d%H%M%S.zip")
+        end
+      end
+
+      def make_xes_logs(job)
         # xes log
         formatter = Log::ProcessLog[:xes]
         log = formatter.read(job.base_location + "pione-process.log")
@@ -215,15 +237,6 @@ module Pione
         end
         task_xes = log[log_id].format([task_filter])
         (job.base_location + "pione-process-task.xes").write(task_xes)
-
-        # make the result zip file
-        uuid = Util::UUID.generate
-        filename = Time.now.strftime("pione-%Y%m%d%H%M%S.zip")
-        job.make_zip(filename)
-        Global.io.push(:result, {job_id: job.id, filename: filename}, :to => @websocket_manager.find(job.id))
-
-        # push status message
-        update_status(job.id, name: "COMPLETED")
       end
     end
   end

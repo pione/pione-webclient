@@ -42,6 +42,10 @@
 		Job.updateJobDescription($("#job-desc").val());
 	    });
 
+	    $("#upload-result-file").on("click", function () {
+		Job.uploadResultFile($("#result-file").val());
+	    });
+
 	    // connect websocket server
 	    Job.io.connect();
 	});
@@ -67,6 +71,9 @@
 	    opDel.on("click", function () {Job.deletePpgFile(filename)});
 	    $("<td/>").append(opDel).appendTo(record);
 	    $("#ppg-file").append(record);
+
+	    // update status
+	    Job.changeStateProcessable();
 	});
 
 	jqxhr.fail(function () {
@@ -77,11 +84,14 @@
 	    $("<td/>").text("-").appendTo(record);
 	    $("<td/>").text("-").appendTo(record);
 	    $("#ppg-file").append(record);
+
+	    // update status
+	    Job.changeStateUnset();
 	});
     };
 
     Job.updateInputFiles = function () {
-	var jqxhr = $.getJSON("/job/inputs/" + Job.id, function (infos) {
+	var jqxhr = $.getJSON("/job/inputs/info/" + Job.id, function (infos) {
 	    $("#inputs").empty();
 
 	    if (infos.length > 0) {
@@ -96,7 +106,7 @@
 		    $("<td/>").text(size).appendTo(record);
 		    $("<td/>").text(mtime).appendTo(record);
 		    var opDel = $("<a/>").html("&times;");
-		    op_delete.on("click", function () {Job.deleteInputFile(filename)});
+		    opDel.on("click", function () {Job.deleteInputFile(filename)});
 		    $("<td/>").append(opDel).appendTo(record);
 		    $("#inputs").append(record);
 		});
@@ -128,10 +138,16 @@
     };
 
     Job.updateResultFiles = function () {
-	$.getJSON("/job/results/" + Job.id, function (infos) {
+	$.getJSON("/job/results/info/" + Job.id, function (infos) {
 	    $("#results").empty();
 
 	    if (infos.length > 0 ) {
+		infos = infos.sort(function (a, b) {
+		    if (a.mtime == b.mtime) return 0;
+		    if (a.mtime < b.mtime) return 1;
+		    if (a.mtime > b.mtime) return -1;
+		});
+
 		_.each(infos, function(info) {
 		    var filename = info.filename;
 		    var size = info.size;
@@ -242,6 +258,15 @@
 	Job.uploadByURL("input", filename, url, Job.updateInputFiles);
     };
 
+    Job.uploadResultFile = function (url) {
+	$.ajax({
+	    url: "/job/inputs/upload/result/" + Job.id,
+	    type: "POST",
+	    data: {url: url},
+	    success: Job.updateInputFiles
+	});
+    }
+
     Job.handlePpgFileSelect = function (event) {
 	var files = event.target.files;
 	Job.uploadPpgByFile(files[0]);
@@ -349,9 +374,12 @@
     // Update job description.
     Job.updateJobDescription = function (text) {
 	$.ajax({
-	    url: "/job/set/desc/" + Job.id,
+	    url: "/job/desc/set/" + Job.id,
 	    type: "POST",
-	    data: {text: text}
+	    data: {text: text},
+	    success: function () {
+		Job.showInfo("Updated description of this job.");
+	    }
 	});
     };
 
@@ -369,9 +397,7 @@
 	Job.setGoodServerStatus("Connected");
 
 	// join job id
-	if (Job.mode == "job_operation") {
-	    Job.io.push("join-job", {job_id: Job.id});
-	}
+	Job.io.push("join-job", {job_id: Job.id});
     });
 
     // Handle "disconnect" messages.
@@ -397,32 +423,16 @@
 	switch(data["name"]) {
 	case "ACCEPTED":
 	    Job.setGoodJobStatus("Queued");
-	    Job.showSuccess("Your request was accepted.");
-	    Job.enableCancel(true);
+	    Job.showSuccess("Your request has been accepted.");
 	    break;
 	case "BUSY":
 	    Job.setBadJobStatus("Busy");
 	    Job.showError("Server is busy now, please try again later.");
-	    break;
-	case "START_FETCHING":
-	    Job.setGoodJobStatus("Fetching");
-	    Job.showInfo("PIONE is fetching your source files...");
-	    break;
-	case "FETCH":
-	    Job.setGoodJobStatus("Fetching " + data["number"] + "/" + data["total"]);
-	    break;
-	case "END_FETCHING":
-	    Job.setGoodJobStatus("Wait Processing");
-	    Job.showSuccess("Your source files have been fetched.");
-	    break;
-	case "FETCH_ERROR":
-	    Job.setBadJobStatus("Error");
-	    Job.showError("PIONE failed to fetch source files.");
 	    Job.changeStateProcessable();
 	    break;
-	case "START_PROCESSING":
+	case "PROCESSING":
 	    Job.setGoodJobStatus("Processing");
-	    Job.showInfo("PIONE starts processing your job.");
+	    Job.showInfo("Server is processing your job now.");
 	    if ($("#message-log:visible").length == 0) {
 		Job.showMessageLog(true);
 	    }
@@ -432,13 +442,14 @@
 	    Job.showError("PIONE failed to process your job.");
 	    Job.changeStateProcessable();
 	    break;
-	case "END_PROCESSING":
+	case "ARCHIVING":
 	    Job.setGoodJobStatus("Archiving");
-	    Job.showInfo("PIONE finishes processing your job.");
+	    Job.showInfo("Server is archiving the result of your job.");
 	    break;
 	case "COMPLETED":
 	    Job.setGoodJobStatus("Completed");
-	    Job.showSuccess("Your job completed.");
+	    Job.showSuccess("Your job has completed.");
+	    Job.changeStateProcessable();
 	    break;
 	case "SHUTDOWN":
 	    Job.setBadJobStatus("Shutdowned");
@@ -446,7 +457,7 @@
 	    break;
 	case "CANCELED":
 	    Job.setGoodJobStatus("Wait Request");
-	    Job.showInfo("Your job canceled.");
+	    Job.showInfo("Your job has been canceled.");
 	    Job.changeStateProcessable();
 	    break;
 	}
@@ -525,7 +536,10 @@
 	$.ajax({
 	    url: "/job/start/" + Job.id,
 	    type: "GET",
-	    success: Job.changeStateProcessing
+	    success: function () {
+		Job.clearMessageLog();
+		Job.changeStateProcessing();
+	    }
 	});
     };
 
@@ -534,7 +548,9 @@
 	$.ajax({
 	    url: "/job/stop/" + Job.id,
 	    type: "GET",
-	    success: Job.changeStateProcessable
+	    success: function () {
+		Job.changeStateProcessable();
+	    }
 	});
     };
 
@@ -544,7 +560,10 @@
 	$.ajax({
 	    url: "/job/clear/" + Job.id,
 	    type: "GET",
-	    success: function () {$("#message-log pre").empty();}
+	    success: function () {
+		Job.clearMessageLog();
+		Job.showInfo("The job has been cleared.");
+	    }
 	});
     };
 
@@ -670,7 +689,7 @@
 
     /* ------------------------------------------------------------ *
        Interaction
-       * ------------------------------------------------------------ */
+     * ------------------------------------------------------------ */
 
     Job.activatePageInteraction = function(state) {
 	if (state) {

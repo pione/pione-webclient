@@ -31,7 +31,7 @@
 		data: {password: digest},
 		success: function () {
 		    // go next page
-		    location.href = "/workspace";
+		    location.href = "/page/workspace/" + encodeURI(username);
 		},
 		error: function (xhr, status, error) {
 		    if (('' + xhr.status).substr(0, 1) == "4") {

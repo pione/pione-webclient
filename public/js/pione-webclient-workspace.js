@@ -31,7 +31,7 @@
 	    dataType: "json",
 	    success: function (job) {
 		// go job page
-		location.href = "/job/manage/" + job.id;
+		location.href = "/page/job/" + job.id;
 	    },
 	    error: Common.errorHandler
 	});
@@ -39,7 +39,7 @@
 
     Workspace.updateJobList = function () {
 	$.ajax({
-	    url: "/workspace/jobs/" + encodeURI(Workspace.username),
+	    url: "/workspace/jobs/info/" + encodeURI(Workspace.username),
 	    type: "GET",
 	    dataType: "json",
 	    success: Workspace.updateTableByJobs,
@@ -70,8 +70,8 @@
 	    });
 	});
 
-	var cellId = $("<td>").append($("<a>").attr("href", "/job/manage/" + job.id).text(job.id));
-	var cellDesc = $("<td>").append($("<a>").attr("href", "/job/manage/" + job.id).text(job.id));
+	var cellId = $("<td>").append($("<a>").attr("href", "/page/job/" + job.id).text(job.id));
+	var cellDesc = $("<td>").append($("<a>").attr("href", "/page/job/" + job.id).text(job.desc));
 	var cellCtime = $("<td>").text(job.ctime);
 	var cellMtime = $("<td>").text(job.mtime);
 	var cellStatus = $("<td>").text(job.status);

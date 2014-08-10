@@ -98,12 +98,22 @@ libs = LibInstaller.define(self) do |installer|
     lib.url  = "http://code.jquery.com/jquery-1.11.1.min.js"
     lib.name = "jquery.js"
   end
+  installer.add do |lib|
+    lib.type = :js
+    lib.url  = "http://code.jquery.com/jquery-1.11.1.min.map"
+    lib.name = "jquery-1.11.1.min.map"
+  end
 
   # undersocre
   installer.add do |lib|
     lib.type = :js
     lib.url  = "https://github.com/jashkenas/underscore/raw/1.5.2/underscore-min.js"
     lib.name = "underscore.js"
+  end
+  installer.add do |lib|
+    lib.type = :js
+    lib.url  = "https://github.com/jashkenas/underscore/raw/1.5.2/underscore-min.map"
+    lib.name = "underscore-min.map"
   end
 
   # d3
