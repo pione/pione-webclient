@@ -37,8 +37,10 @@ module Pione
       def [](name)
         msg = @table[name.to_s]
         data = Hash.new
-        msg.scan(/%{([a-zA-Z0-9_]+?)}/) do |key|
-          data[key] = Global.get(key)
+        msg.scan(/%{([a-zA-Z0-9_]+?)}/) do |keys|
+          keys.each do |key|
+            data[key.to_sym] = Global.get(key.to_sym)
+          end
         end
         msg % data
       end
