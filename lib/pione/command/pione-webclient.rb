@@ -111,7 +111,7 @@ module Pione
             if model[:environment] == :production
               Rootage::Log.warn("Drop-ins app key file not found at %s" % dropins_app_key_path)
             end
-            Global.dropins_app_key = ""
+            Global.dropins_app_key = nil
           end
         end
       end

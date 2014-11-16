@@ -11,7 +11,9 @@
     <script src="/js/pione-webclient-admin.js"></script>
     <script src="/js/pione-webclient-workspace.js"></script>
     <script src="/js/pione-webclient-job.js"></script>
+    <% if Pione::Global.dropins_app_key %>
     <script type="text/javascript" src="https://www.dropbox.com/static/api/1/dropins.js" id="dropboxjs" data-app-key="<%= Pione::Global.dropins_app_key %>"></script>
+    <% end %>
     <script type="text/javascript">
       PioneWebclient.Nav.init();
     </script>

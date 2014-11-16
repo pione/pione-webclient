@@ -8,8 +8,9 @@
     var Common = PioneWebclient.Common;
     var Job = PioneWebclient.Job;
 
-    Job.init = function (id) {
+    Job.init = function (id, enableDropbox) {
 	Job.id = id;
+	Job.enableDropbox = enableDropbox;
 
 	// Do the action on loading the document.
 	$(document).ready(function() {
@@ -35,7 +36,7 @@
 	    $("#follow-message-log").on("click", function () {Job.toggleFollowMessageLog()});
 
 	    Job.setupInteraction();
-	    Job.setupChooser();
+	    if (Job.enableDropbox) Job.setupChooser();
 	    Job.setupDirectUploader();
 
 	    $("#job-desc").on("focusout", function () {
@@ -157,9 +158,11 @@
 		    var download = $("<span>")
 		    var directDownload = $("<a>").attr("href", Job.resultFileURL(filename)).text(filename);
 		    download.append(directDownload);
-		    download.append(" ");
-		    var dropboxDownload = Dropbox.createSaveButton(Job.resultFileURL(filename), filename);
-		    download.append(dropboxDownload);
+		    if (Job.enableDropbox) {
+			download.append(" ");
+			var dropboxDownload = Dropbox.createSaveButton(Job.resultFileURL(filename), filename);
+			download.append(dropboxDownload);
+		    }
 		    $("<td/>").append(download).appendTo(record);
 		    $("<td/>").text(size).appendTo(record);
 		    $("<td/>").text(mtime).appendTo(record);

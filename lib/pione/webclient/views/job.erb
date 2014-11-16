@@ -31,8 +31,10 @@
 	  <h3>PIONE Package</h3>
 	  <!-- buttons for selecting a PPG file -->
 	  <div>
+	    <% if Pione::Global.dropins_app_key %>
 	    <input type="dropbox-chooser" name="selected-file" id="source-ppg-chooser" style="visibility: hidden;"
 		   data-link-type="direct" data-extensions=".ppg" /> or
+	    <% end %>
 	    <div class="btn btn-xs btn-default file">
 	      <span class="glyphicon glyphicon-upload"></span> Direct Upload
 	      <input type="file" id="source-ppg-direct-uploader" />
@@ -52,12 +54,14 @@
 	  <!-- buttons for selecting input files -->
 	  <div>
 	    <form class="form-inline" role="form">
+	      <% if Pione::Global.dropins_app_key %>
 	      <div class="form-group">
 		<div class="input-group">
 		  <input type="dropbox-chooser" name="selected-file" id="source-files-chooser" style="visibility: hidden;"
 			 data-link-type="direct" data-multiselect="true" /> or
 		</div>
 	      </div>
+	      <% end %>
 	      <div class="form-group">
 		<div class="input-group">
 		  <div class="btn btn-xs btn-default file">
@@ -179,7 +183,12 @@
     <!-- ------------------------------------------------------------ -->
 <%= erb :jslibs %>
     <script type="text/javascript">
-      PioneWebclient.Job.init("<%= job.id %>");
+      <% if Pione::Global.dropins_app_key %>
+      var enableDropbox = true;
+      <% else %>
+      var enableDropbox = false;
+      <% end %>
+      PioneWebclient.Job.init("<%= job.id %>", enableDropbox);
     </script>
   </body>
 </html>
