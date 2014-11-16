@@ -109,10 +109,9 @@ module Pione
             Global.dropins_app_key = dropins_app_key_path.read.chomp
           else
             if model[:environment] == :production
-              abort("You should create Drop-ins app key file at %s" % dropins_app_key_path)
-            else
-              Global.dropins_app_key = ""
+              Rootage::Log.warn("Drop-ins app key file not found at %s" % dropins_app_key_path)
             end
+            Global.dropins_app_key = ""
           end
         end
       end
