@@ -45,7 +45,7 @@ module Pione
       # Delete the user. This deletes all of files in user directory.
       # @return [void]
       def delete
-        userdir.delete
+        dir.delete
       end
 
       # Set the password. Return true if the password's format is valid.
