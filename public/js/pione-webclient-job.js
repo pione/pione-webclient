@@ -502,6 +502,7 @@
 	// activate page interaction
 	Job.activatePageInteraction(true)
 
+	$("#interaction-button").unbind();
 	$("#interaction-button").on("click", function () {
 	    var win = window.open(data.url, "_blank");
 	    win.focus();
